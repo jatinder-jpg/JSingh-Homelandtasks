@@ -28,6 +28,9 @@
   .pill.HIGH{color:var(--red);border-color:var(--red)}
   .pill.MEDIUM{color:var(--amber);border-color:var(--amber)}
   .pill.LOW{color:var(--green);border-color:var(--green)}
+  .pill.APPROVED{color:var(--green);border-color:var(--green)}
+  .pill.REJECTED{color:var(--red);border-color:var(--red)}
+  .pill.PENDING{color:var(--amber);border-color:var(--amber)}
   .err{color:var(--red);font-size:13px;margin:6px 0 0}
   .ok{color:var(--green);font-size:13px;margin:6px 0 0}
   .muted{color:var(--muted)}
@@ -42,7 +45,7 @@
   .bell{position:relative;cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:#0b1220}
   .badge{position:absolute;top:-7px;right:-7px;background:var(--red);color:#fff;border-radius:999px;font-size:10px;padding:1px 6px}
   .note{background:#1d2748;border:1px solid var(--border);border-left:4px solid var(--amber);border-radius:8px;padding:10px 12px;margin-bottom:8px}
-  .a{color:var(--blue)}
+  .big{font-size:28px;font-weight:700;letter-spacing:.02em}
 </style>
 </head>
 <body>
@@ -80,6 +83,9 @@
       <button id="nav-meetings" onclick="showTab('meetings')">Meetings</button>
       <button id="nav-announcements" onclick="showTab('announcements')">Announcements</button>
       <button id="nav-notes" onclick="showTab('notes')">Notes</button>
+      <button id="nav-attendance" onclick="showTab('attendance')">Attendance</button>
+      <button id="nav-timesheet" onclick="showTab('timesheet')">Timesheet</button>
+      <button id="nav-leaves" onclick="showTab('leaves')">Leaves</button>
       <button id="nav-notifications" onclick="showTab('notifications')">Notifications</button>
     </div>
 
@@ -174,6 +180,66 @@
       </div>
     </div>
 
+    <div id="view-attendance" class="hidden">
+      <div class="card">
+        <h2>Attendance</h2>
+        <div id="attToday" class="big" style="margin-bottom:12px">--</div>
+        <div class="row">
+          <button onclick="checkIn()">Check in</button>
+          <button class="ghost" onclick="checkOut()">Check out</button>
+        </div>
+        <p id="attMsg"></p>
+      </div>
+      <div class="card">
+        <div class="between"><h2 style="margin:0">History</h2>
+          <button class="ghost" onclick="loadAttendance()">Refresh</button></div>
+        <div id="attList"></div>
+      </div>
+    </div>
+
+    <div id="view-timesheet" class="hidden">
+      <div class="card">
+        <h2>Log hours</h2>
+        <div class="row">
+          <div><label>Date</label><input id="tsDate" type="date"></div>
+          <div style="flex:1"><label>Project / task</label><input id="tsProject" style="width:100%" placeholder="Site Operations"></div>
+          <div><label>Hours</label><input id="tsHours" type="number" step="0.5" min="0" style="width:90px" value="8"></div>
+        </div>
+        <label>Note</label>
+        <input id="tsNote" style="width:100%" placeholder="What did you work on?">
+        <button style="margin-top:12px" onclick="addTimesheet()">Add entry</button>
+        <p id="tsMsg"></p>
+      </div>
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Entries</h2>
+          <button class="ghost" onclick="loadTimesheet()">Refresh</button></div>
+        <div id="tsTotal" class="muted" style="margin:8px 0 12px"></div>
+        <div id="tsList"></div>
+      </div>
+    </div>
+
+    <div id="view-leaves" class="hidden">
+      <div class="card">
+        <h2>Apply for leave</h2>
+        <div class="row">
+          <div><label>From</label><input id="lvFrom" type="date"></div>
+          <div><label>To</label><input id="lvTo" type="date"></div>
+          <div><label>Type</label>
+            <select id="lvType"><option>CASUAL</option><option>SICK</option><option>EARNED</option></select>
+          </div>
+        </div>
+        <label>Reason</label>
+        <input id="lvReason" style="width:100%" placeholder="Reason for leave">
+        <button style="margin-top:12px" onclick="applyLeave()">Apply</button>
+        <p id="lvMsg"></p>
+      </div>
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Your leaves</h2>
+          <button class="ghost" onclick="loadLeaves()">Refresh</button></div>
+        <div id="lvList"></div>
+      </div>
+    </div>
+
     <div id="view-notifications" class="hidden">
       <div class="card">
         <div class="between"><h2 style="margin:0">Notifications</h2>
@@ -183,7 +249,7 @@
     </div>
 
     <p class="muted" style="font-size:12px;text-align:center">
-      All data is stored on the live server and shared across everyone who signs in. Phase 2 - tasks, meetings, announcements, notes, notifications.
+      All data is stored on the live server and shared across everyone who signs in. Phase 3 - tasks, meetings, announcements, notes, attendance, timesheet, leaves, notifications.
     </p>
   </div>
 </div>
@@ -223,7 +289,7 @@
     document.getElementById("app").classList.remove("hidden");
   }
 
-  const TABS = ["tasks","meetings","announcements","notes","notifications"];
+  const TABS = ["tasks","meetings","announcements","notes","attendance","timesheet","leaves","notifications"];
   function showTab(name){
     TABS.forEach(function(t){
       document.getElementById("view-"+t).classList.toggle("hidden", t!==name);
@@ -233,6 +299,9 @@
     if(name==="meetings") loadMeetings();
     if(name==="announcements") loadAnnouncements();
     if(name==="notes") loadNotes();
+    if(name==="attendance") loadAttendance();
+    if(name==="timesheet") loadTimesheet();
+    if(name==="leaves") loadLeaves();
     if(name==="notifications") loadNotifications();
   }
 
@@ -409,6 +478,96 @@
   }
   async function deleteNote(id){
     try{ await api("/api/notes/"+id, { method:"DELETE" }); await loadNotes(); }
+    catch(e){ alert(e.message); }
+  }
+
+  function fmtTime(iso){ if(!iso) return "--"; try{ return new Date(iso).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); }catch(e){ return iso; } }
+
+  async function loadAttendance(){
+    const list = await api("/api/attendance");
+    const today = new Date().toISOString().slice(0,10);
+    const t = list.find(function(a){ return a.day===today; });
+    document.getElementById("attToday").textContent = t
+      ? ("In "+fmtTime(t.checkIn)+(t.checkOut? "  |  Out "+fmtTime(t.checkOut):"  |  (not checked out)"))
+      : "Not checked in today";
+    document.getElementById("attList").innerHTML = list.map(function(a){
+      return '<div class="item between"><span><b>'+esc(a.day)+'</b></span>'+
+        '<span class="muted">In '+fmtTime(a.checkIn)+' - Out '+fmtTime(a.checkOut)+'</span></div>';
+    }).join("") || '<div class="muted">No records yet.</div>';
+  }
+  async function checkIn(){
+    const msg=document.getElementById("attMsg"); msg.className="ok"; msg.textContent="";
+    try{ await api("/api/attendance/checkin", { method:"POST" }); msg.textContent="Checked in"; await loadAttendance(); }
+    catch(e){ msg.className="err"; msg.textContent=e.message; }
+  }
+  async function checkOut(){
+    const msg=document.getElementById("attMsg"); msg.className="ok"; msg.textContent="";
+    try{ await api("/api/attendance/checkout", { method:"POST" }); msg.textContent="Checked out"; await loadAttendance(); }
+    catch(e){ msg.className="err"; msg.textContent=e.message; }
+  }
+
+  async function addTimesheet(){
+    const msg=document.getElementById("tsMsg");
+    const project=document.getElementById("tsProject").value.trim();
+    const hours=Number(document.getElementById("tsHours").value);
+    if(!project){ msg.className="err"; msg.textContent="Enter a project/task."; return; }
+    msg.className="ok"; msg.textContent="";
+    try{
+      await api("/api/timesheet", { method:"POST", body: JSON.stringify({
+        day: document.getElementById("tsDate").value || null,
+        project: project, hours: hours,
+        note: document.getElementById("tsNote").value
+      })});
+      document.getElementById("tsProject").value=""; document.getElementById("tsNote").value="";
+      msg.textContent="Saved"; await loadTimesheet();
+    }catch(e){ msg.className="err"; msg.textContent=e.message; }
+  }
+  async function loadTimesheet(){
+    const list = await api("/api/timesheet");
+    let total=0; list.forEach(function(e){ total+=(e.hours||0); });
+    document.getElementById("tsTotal").textContent = "Total logged: "+total+" h";
+    document.getElementById("tsList").innerHTML = list.map(function(e){
+      return '<div class="item between"><div><b>'+esc(e.project)+'</b> <span class="muted">'+esc(e.day||"")+'</span>'+
+        (e.note?'<br><span class="muted">'+esc(e.note)+'</span>':'')+'</div>'+
+        '<div class="row" style="align-items:center"><span class="pill">'+e.hours+' h</span>'+
+        '<button class="ghost" onclick="deleteTimesheet('+e.id+')">Delete</button></div></div>';
+    }).join("") || '<div class="muted">No entries yet.</div>';
+  }
+  async function deleteTimesheet(id){
+    try{ await api("/api/timesheet/"+id, { method:"DELETE" }); await loadTimesheet(); }
+    catch(e){ alert(e.message); }
+  }
+
+  async function applyLeave(){
+    const msg=document.getElementById("lvMsg");
+    const from=document.getElementById("lvFrom").value;
+    const to=document.getElementById("lvTo").value;
+    if(!from||!to){ msg.className="err"; msg.textContent="Pick both dates."; return; }
+    msg.className="ok"; msg.textContent="";
+    try{
+      await api("/api/leaves", { method:"POST", body: JSON.stringify({
+        fromDate: from, toDate: to,
+        type: document.getElementById("lvType").value,
+        reason: document.getElementById("lvReason").value
+      })});
+      document.getElementById("lvReason").value="";
+      msg.textContent="Applied"; await loadLeaves();
+    }catch(e){ msg.className="err"; msg.textContent=e.message; }
+  }
+  async function loadLeaves(){
+    const list = await api("/api/leaves");
+    const admin = ROLE==="ADMIN";
+    document.getElementById("lvList").innerHTML = list.map(function(l){
+      var Q = String.fromCharCode(39);
+      const controls = admin && l.status==="PENDING"
+        ? '<button onclick="setLeave('+l.id+','+Q+'APPROVED'+Q+')">Approve</button> <button class="ghost" onclick="setLeave('+l.id+','+Q+'REJECTED'+Q+')">Reject</button>'
+        : '<span class="pill '+esc(l.status)+'">'+esc(l.status)+'</span>';
+      return '<div class="item between"><div><b>'+esc(l.type)+'</b> <span class="muted">'+esc(l.fromDate)+' to '+esc(l.toDate)+'</span>'+
+        (l.reason?'<br><span class="muted">'+esc(l.reason)+'</span>':'')+'</div><div class="row" style="align-items:center">'+controls+'</div></div>';
+    }).join("") || '<div class="muted">No leaves yet.</div>';
+  }
+  async function setLeave(id, status){
+    try{ await api("/api/leaves/"+id+"/status", { method:"PATCH", body: JSON.stringify({ status: status }) }); await loadLeaves(); }
     catch(e){ alert(e.message); }
   }
 
