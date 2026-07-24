@@ -1,22 +1,22 @@
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HOMELAND TASKS - Live</title>
-  <style>
-    :root{
-      --bg:#0c1220; --panel:#17213c; --border:#2b3554; --text:#ece5d5; --muted:#98a1b8;
-      --blue:#c9a250; --green:#34c274; --amber:#f2a516; --red:#f0616a; --shadow:0 1px 4px rgba(0,0,0,.35);
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HOMELAND TASKS - Live</title>
+<style>
+  :root{
+    --bg:#0c1220; --panel:#17213c; --border:#2b3554; --text:#ece5d5; --muted:#98a1b8;
+    --blue:#c9a250; --green:#34c274; --amber:#f2a516; --red:#f0616a; --shadow:0 1px 4px rgba(0,0,0,.35);
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
-  a{color:var(--blue)}
-  .wrap{max-width:900px;margin:0 auto;padding:20px}
+  .wrap{max-width:960px;margin:0 auto;padding:20px}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
   h1{font-size:22px;letter-spacing:.14em;margin:0}
   h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 12px}
   input,select,button,textarea{font:inherit;padding:9px 11px;border-radius:8px;border:1px solid var(--border);background:#0b1220;color:var(--text)}
+  textarea{width:100%;resize:vertical;min-height:64px}
   button{background:var(--blue);border:none;color:#1a1205;font-weight:600;cursor:pointer}
   button.ghost{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:500}
   button:disabled{opacity:.5;cursor:not-allowed}
@@ -32,83 +32,167 @@
   .ok{color:var(--green);font-size:13px;margin:6px 0 0}
   .muted{color:var(--muted)}
   .hidden{display:none}
-      .brand{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--blue),var(--amber));display:inline-block;vertical-align:middle;margin-right:8px}
+  .brand{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--blue),var(--amber));display:inline-block;vertical-align:middle;margin-right:8px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:640px){.grid{grid-template-columns:1fr}}
   .tag{font-size:11px;color:var(--green);border:1px solid var(--green);border-radius:999px;padding:2px 8px}
+  .nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .nav button{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:500}
+  .nav button.active{background:var(--blue);color:#1a1205;border-color:var(--blue);font-weight:600}
+  .bell{position:relative;cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:#0b1220}
+  .badge{position:absolute;top:-7px;right:-7px;background:var(--red);color:#fff;border-radius:999px;font-size:10px;padding:1px 6px}
+  .note{background:#1d2748;border:1px solid var(--border);border-left:4px solid var(--amber);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+  .a{color:var(--blue)}
 </style>
-    </head>
-    <body>
-    <div class="wrap">
+</head>
+<body>
+<div class="wrap">
 
-      <div id="loginCard" class="card" style="max-width:420px;margin:8vh auto">
-        <div style="text-align:center">
-          <span class="brand"></span><h1 style="display:inline-block">HOMELAND TASKS</h1>
-          <p class="muted">Sign in to your workspace <span class="tag">LIVE</span></p>
+  <div id="loginCard" class="card" style="max-width:420px;margin:8vh auto">
+    <div style="text-align:center">
+      <span class="brand"></span><h1 style="display:inline-block">HOMELAND TASKS</h1>
+      <p class="muted">Sign in to your workspace <span class="tag">LIVE</span></p>
     </div>
     <label>Email</label>
     <input id="email" style="width:100%" value="jatinder@homelandgroup.org" autocomplete="username">
-        <label>Password</label>
-        <input id="password" type="password" style="width:100%" value="" autocomplete="current-password">
-        <p id="loginMsg" class="err"></p>
-        <button id="loginBtn" style="width:100%;margin-top:12px" onclick="doLogin()">Sign in</button>
-        <p class="muted" style="font-size:12px;margin-top:12px">Demo accounts - password <code>homeland123</code><br>
-          jatinder@ - abhay@ - umang@ - priya@ - naveen@homelandgroup.org</p>
-      </div>
+    <label>Password</label>
+    <input id="password" type="password" style="width:100%" value="" autocomplete="current-password">
+    <p id="loginMsg" class="err"></p>
+    <button id="loginBtn" style="width:100%;margin-top:12px" onclick="doLogin()">Sign in</button>
+    <p class="muted" style="font-size:12px;margin-top:12px">Demo accounts - password <code>homeland123</code><br>
+      jatinder@ - abhay@ - umang@ - priya@ - naveen@homelandgroup.org</p>
+  </div>
 
-      <div id="app" class="hidden">
-        <div class="card between">
-          <div><span class="brand"></span><b style="letter-spacing:.14em">HOMELAND TASKS</b>
-            <span class="tag">LIVE - connected</span></div>
-          <div class="row" style="align-items:center">
-            <span id="who" class="muted"></span>
-            <button class="ghost" onclick="logout()">Sign out</button>
-          </div>
-        </div>
-
-        <div class="grid">
-          <div class="card">
-            <h2>Projects</h2>
-            <div class="row">
-              <input id="projName" placeholder="New project name" style="flex:1">
-              <button onclick="addProject()">Add</button>
-            </div>
-            <p id="projMsg"></p>
-            <div id="projList" style="margin-top:10px"></div>
-          </div>
-
-          <div class="card">
-            <h2>New task</h2>
-            <label>Title</label>
-            <input id="taskTitle" placeholder="e.g. Site visit - Sector 22" style="width:100%">
-            <div class="row" style="margin-top:8px">
-              <div style="flex:1"><label>Project</label><select id="taskProject" style="width:100%"></select></div>
-              <div><label>Priority</label>
-                <select id="taskPriority"><option>HIGH</option><option selected>MEDIUM</option><option>LOW</option></select>
-              </div>
-            </div>
-            <button style="margin-top:12px" onclick="addTask()">Add task</button>
-            <p id="taskMsg"></p>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="between"><h2 style="margin:0">Tasks</h2>
-            <button class="ghost" onclick="loadAll()">Refresh</button></div>
-          <div id="summary" class="muted" style="margin:8px 0 12px"></div>
-          <div id="taskList"></div>
-        </div>
-
-        <p class="muted" style="font-size:12px;text-align:center">
-          Data is stored on the live server and shared across everyone who signs in. Phase 1 - login + projects + tasks.
-        </p>
+  <div id="app" class="hidden">
+    <div class="card between">
+      <div><span class="brand"></span><b style="letter-spacing:.14em">HOMELAND TASKS</b>
+        <span class="tag">LIVE - connected</span></div>
+      <div class="row" style="align-items:center">
+        <div class="bell" onclick="showTab('notifications')" title="Notifications">&#128276;
+          <span id="bell" class="badge hidden">0</span></div>
+        <span id="who" class="muted"></span>
+        <button class="ghost" onclick="logout()">Sign out</button>
       </div>
     </div>
 
-    <script>
-      const BASE_URL = "https://homeland-tasks-backend-production.up.railway.app";
+    <div class="nav">
+      <button id="nav-tasks" class="active" onclick="showTab('tasks')">Tasks</button>
+      <button id="nav-meetings" onclick="showTab('meetings')">Meetings</button>
+      <button id="nav-announcements" onclick="showTab('announcements')">Announcements</button>
+      <button id="nav-notes" onclick="showTab('notes')">Notes</button>
+      <button id="nav-notifications" onclick="showTab('notifications')">Notifications</button>
+    </div>
+
+    <div id="view-tasks">
+      <div class="grid">
+        <div class="card">
+          <h2>Projects</h2>
+          <div class="row">
+            <input id="projName" placeholder="New project name" style="flex:1">
+            <button onclick="addProject()">Add</button>
+          </div>
+          <p id="projMsg"></p>
+          <div id="projList" style="margin-top:10px"></div>
+        </div>
+        <div class="card">
+          <h2>New task</h2>
+          <label>Title</label>
+          <input id="taskTitle" placeholder="e.g. Site visit - Sector 22" style="width:100%">
+          <div class="row" style="margin-top:8px">
+            <div style="flex:1"><label>Project</label><select id="taskProject" style="width:100%"></select></div>
+            <div><label>Priority</label>
+              <select id="taskPriority"><option>HIGH</option><option selected>MEDIUM</option><option>LOW</option></select>
+            </div>
+          </div>
+          <button style="margin-top:12px" onclick="addTask()">Add task</button>
+          <p id="taskMsg"></p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Tasks</h2>
+          <button class="ghost" onclick="loadTasks()">Refresh</button></div>
+        <div id="summary" class="muted" style="margin:8px 0 12px"></div>
+        <div id="taskList"></div>
+      </div>
+    </div>
+
+    <div id="view-meetings" class="hidden">
+      <div class="card">
+        <h2>New meeting</h2>
+        <div class="row">
+          <div style="flex:1"><label>Title</label><input id="mTitle" style="width:100%" placeholder="Weekly sync"></div>
+          <div><label>Type</label><select id="mType"><option value="TEAM">Team</option><option value="PERSONAL">Personal</option></select></div>
+          <div><label>Priority</label><select id="mPriority"><option>HIGH</option><option selected>MEDIUM</option><option>LOW</option></select></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label>Date</label><input id="mDate" type="date"></div>
+          <div><label>Start</label><input id="mStart" type="time"></div>
+          <div><label>End</label><input id="mEnd" type="time"></div>
+        </div>
+        <label>Attendees (comma-separated emails)</label>
+        <input id="mAttendees" style="width:100%" placeholder="abhay@homelandgroup.org, priya@homelandgroup.org">
+        <label>Description</label>
+        <textarea id="mDesc" placeholder="Agenda..."></textarea>
+        <button style="margin-top:12px" onclick="addMeeting()">Save meeting</button>
+        <p id="mMsg"></p>
+      </div>
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Meetings</h2>
+          <button class="ghost" onclick="loadMeetings()">Refresh</button></div>
+        <div id="meetList"></div>
+      </div>
+    </div>
+
+    <div id="view-announcements" class="hidden">
+      <div id="annCompose" class="card">
+        <h2>New announcement (admin)</h2>
+        <label>Title</label>
+        <input id="annTitle" style="width:100%" placeholder="Office closed Friday">
+        <label>Message</label>
+        <textarea id="annMsg" placeholder="Broadcast to everyone..."></textarea>
+        <button style="margin-top:12px" onclick="broadcast()">Broadcast</button>
+        <p id="annStatus"></p>
+      </div>
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Announcements</h2>
+          <button class="ghost" onclick="loadAnnouncements()">Refresh</button></div>
+        <div id="annList"></div>
+      </div>
+    </div>
+
+    <div id="view-notes" class="hidden">
+      <div class="card">
+        <h2>Sticky notes</h2>
+        <textarea id="noteText" placeholder="Jot something down..."></textarea>
+        <button style="margin-top:10px" onclick="addNote()">Add note</button>
+        <p id="noteMsg"></p>
+      </div>
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Your notes</h2>
+          <button class="ghost" onclick="loadNotes()">Refresh</button></div>
+        <div id="noteList"></div>
+      </div>
+    </div>
+
+    <div id="view-notifications" class="hidden">
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Notifications</h2>
+          <button class="ghost" onclick="loadNotifications()">Refresh</button></div>
+        <div id="notifList"></div>
+      </div>
+    </div>
+
+    <p class="muted" style="font-size:12px;text-align:center">
+      All data is stored on the live server and shared across everyone who signs in. Phase 2 - tasks, meetings, announcements, notes, notifications.
+    </p>
+  </div>
+</div>
+
+<script>
+  const BASE_URL = "https://homeland-tasks-backend-production.up.railway.app";
   const TOKEN_KEY = "homeland_token";
   const STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
+  let ROLE = "";
 
   function token(){ return localStorage.getItem(TOKEN_KEY); }
   function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
@@ -125,19 +209,32 @@
       let msg = "Request failed (" + res.status + ")";
       try { const b = await res.json(); msg = b.error || b.message || msg; } catch(e){}
       throw new Error(msg);
-}
+    }
     if (res.status === 204) return null;
     return res.json();
-}
+  }
 
   function showLogin(){
     document.getElementById("app").classList.add("hidden");
     document.getElementById("loginCard").classList.remove("hidden");
-}
+  }
   function showApp(){
     document.getElementById("loginCard").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
-}
+  }
+
+  const TABS = ["tasks","meetings","announcements","notes","notifications"];
+  function showTab(name){
+    TABS.forEach(function(t){
+      document.getElementById("view-"+t).classList.toggle("hidden", t!==name);
+      document.getElementById("nav-"+t).classList.toggle("active", t===name);
+    });
+    if(name==="tasks"){ loadProjects(); loadTasks(); }
+    if(name==="meetings") loadMeetings();
+    if(name==="announcements") loadAnnouncements();
+    if(name==="notes") loadNotes();
+    if(name==="notifications") loadNotifications();
+  }
 
   async function doLogin(){
     const btn = document.getElementById("loginBtn");
@@ -149,22 +246,23 @@
         body: JSON.stringify({
           email: document.getElementById("email").value.trim(),
           password: document.getElementById("password").value
-})
-});
-      setToken(data.token);
-      document.getElementById("who").textContent = data.name + " - " + data.role;
-      showApp();
-      await loadAll();
-}catch(e){ msg.textContent = e.message; }
+        })
+      });
+      setToken(data.token); ROLE = data.role;
+      afterLogin(data.name, data.role);
+    }catch(e){ msg.textContent = e.message; }
     finally{ btn.disabled = false; btn.textContent = "Sign in"; }
-}
+  }
+
+  function afterLogin(name, role){
+    document.getElementById("who").textContent = name + " - " + role;
+    document.getElementById("annCompose").classList.toggle("hidden", role !== "ADMIN");
+    showApp();
+    showTab("tasks");
+    refreshBell();
+  }
 
   function logout(){ clearToken(); location.reload(); }
-
-  async function loadAll(){
-    await loadProjects();
-    await loadTasks();
-}
 
   async function loadProjects(){
     const projects = await api("/api/projects");
@@ -173,9 +271,8 @@
       || '<option value="">Create a project first</option>';
     document.getElementById("projList").innerHTML = projects.map(function(p){
       return '<div class="item">'+esc(p.name)+(p.description?' <span class="muted">- '+esc(p.description)+'</span>':'')+'</div>';
-}).join("") || '<div class="muted">No projects yet.</div>';
-}
-
+    }).join("") || '<div class="muted">No projects yet.</div>';
+  }
   async function addProject(){
     const msg = document.getElementById("projMsg");
     const name = document.getElementById("projName").value.trim();
@@ -185,9 +282,8 @@
       await api("/api/projects", { method:"POST", body: JSON.stringify({ name: name }) });
       document.getElementById("projName").value = "";
       msg.textContent = "Saved"; await loadProjects();
-}catch(e){ msg.className="err"; msg.textContent = e.message; }
-}
-
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
   async function addTask(){
     const msg = document.getElementById("taskMsg");
     const title = document.getElementById("taskTitle").value.trim();
@@ -199,13 +295,12 @@
       await api("/api/tasks", { method:"POST", body: JSON.stringify({
         title: title, projectId: projectId,
         priority: document.getElementById("taskPriority").value, status:"TODO"
-})});
+      })});
       document.getElementById("taskTitle").value = "";
       msg.textContent = "Saved (stored on the server)";
       await loadTasks();
-}catch(e){ msg.className="err"; msg.textContent = e.message; }
-}
-
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
   async function loadTasks(){
     const tasks = await api("/api/tasks");
     const counts = { HIGH:0, MEDIUM:0, LOW:0 };
@@ -224,27 +319,128 @@
           '</select>'+
           '<button class="ghost" onclick="removeTask('+t.id+')">Delete</button>'+
         '</div></div>';
-}).join("") || '<div class="muted">No tasks yet.</div>';
-}
-
+    }).join("") || '<div class="muted">No tasks yet.</div>';
+  }
   async function changeStatus(id, status){
     try{ await api("/api/tasks/"+id+"/status", { method:"PATCH", body: JSON.stringify({ status: status }) }); await loadTasks(); }
     catch(e){ alert(e.message); }
-}
+  }
   async function removeTask(id){
     try{ await api("/api/tasks/"+id, { method:"DELETE" }); await loadTasks(); }
     catch(e){ alert(e.message); }
-}
+  }
+
+  async function addMeeting(){
+    const msg = document.getElementById("mMsg");
+    const title = document.getElementById("mTitle").value.trim();
+    if(!title){ msg.className="err"; msg.textContent="Enter a title."; return; }
+    const attendees = document.getElementById("mAttendees").value.split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+    const body = {
+      title: title,
+      type: document.getElementById("mType").value,
+      priority: document.getElementById("mPriority").value,
+      meetingDate: document.getElementById("mDate").value || null,
+      startTime: document.getElementById("mStart").value || null,
+      endTime: document.getElementById("mEnd").value || null,
+      description: document.getElementById("mDesc").value,
+      attendees: attendees
+    };
+    msg.className="ok"; msg.textContent="";
+    try{
+      await api("/api/meetings", { method:"POST", body: JSON.stringify(body) });
+      document.getElementById("mTitle").value=""; document.getElementById("mDesc").value="";
+      document.getElementById("mAttendees").value="";
+      msg.textContent = "Saved"; await loadMeetings();
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
+  async function loadMeetings(){
+    const list = await api("/api/meetings");
+    document.getElementById("meetList").innerHTML = list.map(function(m){
+      const when = [m.meetingDate, m.startTime].filter(Boolean).join(" ") + (m.endTime? " - "+m.endTime : "");
+      return '<div class="item between">'+
+        '<div><b>'+esc(m.title)+'</b> <span class="pill '+(m.priority||"MEDIUM")+'">'+(m.priority||"")+'</span><br>'+
+          '<span class="muted">'+esc(m.type||"")+(when.trim()? " - "+esc(when):"")+
+          (m.attendees&&m.attendees.length? " - "+m.attendees.length+" attendee(s)":"")+'</span></div>'+
+        '<button class="ghost" onclick="deleteMeeting('+m.id+')">Delete</button>'+
+      '</div>';
+    }).join("") || '<div class="muted">No meetings yet.</div>';
+  }
+  async function deleteMeeting(id){
+    try{ await api("/api/meetings/"+id, { method:"DELETE" }); await loadMeetings(); }
+    catch(e){ alert(e.message); }
+  }
+
+  async function broadcast(){
+    const s = document.getElementById("annStatus");
+    const title = document.getElementById("annTitle").value.trim();
+    const message = document.getElementById("annMsg").value.trim();
+    if(!title || !message){ s.className="err"; s.textContent="Title and message required."; return; }
+    s.className="ok"; s.textContent="";
+    try{
+      await api("/api/announcements", { method:"POST", body: JSON.stringify({ title: title, message: message }) });
+      document.getElementById("annTitle").value=""; document.getElementById("annMsg").value="";
+      s.textContent = "Broadcast sent to everyone"; await loadAnnouncements(); refreshBell();
+    }catch(e){ s.className="err"; s.textContent = e.message; }
+  }
+  async function loadAnnouncements(){
+    const list = await api("/api/announcements");
+    document.getElementById("annList").innerHTML = list.map(function(a){
+      return '<div class="item"><b>'+esc(a.title)+'</b><br><span class="muted">'+esc(a.message||"")+'</span>'+
+        (a.createdByEmail? '<br><span class="muted" style="font-size:11px">by '+esc(a.createdByEmail)+'</span>':'')+'</div>';
+    }).join("") || '<div class="muted">No announcements yet.</div>';
+  }
+
+  async function addNote(){
+    const msg = document.getElementById("noteMsg");
+    const content = document.getElementById("noteText").value.trim();
+    if(!content) return;
+    msg.className="ok"; msg.textContent="";
+    try{
+      await api("/api/notes", { method:"POST", body: JSON.stringify({ content: content }) });
+      document.getElementById("noteText").value=""; msg.textContent="Saved"; await loadNotes();
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
+  async function loadNotes(){
+    const list = await api("/api/notes");
+    document.getElementById("noteList").innerHTML = list.map(function(n){
+      return '<div class="note between"><span>'+esc(n.content||"")+'</span>'+
+        '<button class="ghost" onclick="deleteNote('+n.id+')">x</button></div>';
+    }).join("") || '<div class="muted">No notes yet.</div>';
+  }
+  async function deleteNote(id){
+    try{ await api("/api/notes/"+id, { method:"DELETE" }); await loadNotes(); }
+    catch(e){ alert(e.message); }
+  }
+
+  async function loadNotifications(){
+    const list = await api("/api/notifications");
+    document.getElementById("notifList").innerHTML = list.map(function(n){
+      return '<div class="item between"><span'+(n.read?' class="muted"':'')+'>'+esc(n.message||"")+'</span>'+
+        (n.read? '<span class="muted" style="font-size:11px">read</span>' : '<button class="ghost" onclick="markRead('+n.id+')">Mark read</button>')+
+      '</div>';
+    }).join("") || '<div class="muted">No notifications.</div>';
+    refreshBell();
+  }
+  async function markRead(id){
+    try{ await api("/api/notifications/"+id+"/read", { method:"PATCH" }); await loadNotifications(); }
+    catch(e){ alert(e.message); }
+  }
+  async function refreshBell(){
+    try{
+      const r = await api("/api/notifications/unread-count");
+      const b = document.getElementById("bell");
+      const n = r && r.count ? r.count : 0;
+      b.textContent = n; b.classList.toggle("hidden", n===0);
+    }catch(e){}
+  }
 
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, function(c){
     return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 
   if (token()){
-    api("/api/auth/me").then(function(u){
-      document.getElementById("who").textContent = u.name + " - " + u.role;
-      showApp(); return loadAll();
-}).catch(function(){ clearToken(); showLogin(); });
-}
+    api("/api/auth/me").then(function(u){ ROLE=u.role; afterLogin(u.name, u.role); })
+      .catch(function(){ clearToken(); showLogin(); });
+  }
 </script>
 </body>
 </html>
