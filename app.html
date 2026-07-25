@@ -84,6 +84,49 @@
   .tbl td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle}
   .tbl tbody tr:hover td{background:#1a2440}
   .tbl select{padding:6px 8px;font-size:13px}
+
+  /* ---- Stat cards ---- */
+  .statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  @media(max-width:760px){.statgrid{grid-template-columns:1fr 1fr}}
+  .statcard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .statcard .n{font-size:26px;font-weight:700}
+  .statcard .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+
+  /* ---- View tabs (List/Kanban/Calendar) ---- */
+  .viewtabs{display:flex;gap:6px;margin-bottom:14px}
+  .viewtabs button{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:500;padding:6px 14px;font-size:13px}
+  .viewtabs button.active{background:var(--blue);color:#1a1205;border-color:var(--blue);font-weight:600}
+
+  /* ---- Grouped list headers ---- */
+  .grouprow td{border-bottom:none;padding:12px 4px 4px}
+  .grouphead{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .grouphead .n{background:var(--border);color:var(--text);border-radius:999px;padding:0 8px;font-size:11px}
+
+  .avatar{width:24px;height:24px;border-radius:999px;background:var(--blue);color:#1a1205;font-size:10px;
+    font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+
+  /* ---- Kanban board ---- */
+  .kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:760px){.kanban{grid-template-columns:1fr}}
+  .kcol{background:#121a30;border:1px solid var(--border);border-radius:10px;padding:10px;min-height:120px}
+  .kcol h3{font-size:12px;text-transform:uppercase;color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between}
+  .kcol h3 .n{background:var(--border);color:var(--text);border-radius:999px;padding:0 8px;font-size:11px}
+  .kcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:13px}
+  .kcard .kmeta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:11px}
+  .kcard button{padding:3px 8px;font-size:11px}
+
+  /* ---- Calendar view ---- */
+  .calnav{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .calgrid .dow{text-align:center;color:var(--muted);font-size:11px;padding:4px 0}
+  .calcell{border:1px solid var(--border);border-radius:6px;min-height:56px;padding:4px}
+  .calcell.other{opacity:.35}
+  .calcell.today{border-color:var(--blue)}
+  .calcell .d{font-size:11px;color:var(--muted)}
+  .calcell .dot{width:6px;height:6px;border-radius:999px;background:var(--red);display:inline-block;margin:4px 2px 0 0}
+
+  /* ---- Priority donut ---- */
+  .donut{width:110px;height:110px;border-radius:50%;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -119,6 +162,7 @@
         <button id="nav-timesheet" onclick="showTab('timesheet')">Timesheet</button>
         <button id="nav-leaves" onclick="showTab('leaves')">Leaves</button>
         <button id="nav-reports" onclick="showTab('reports')">Reports</button>
+        <button id="nav-users" onclick="showTab('users')">Users</button>
         <button id="nav-notifications" onclick="showTab('notifications')">Notifications
           <span id="bell2" class="badge-count hidden">0</span></button>
       </div>
@@ -137,6 +181,8 @@
       </div>
 
     <div id="view-tasks">
+      <div class="statgrid" id="statCards"></div>
+
       <div class="grid">
         <div class="card">
           <h2>Projects</h2>
@@ -151,31 +197,76 @@
           <h2>New task</h2>
           <label>Title</label>
           <input id="taskTitle" placeholder="e.g. Site visit - Sector 22" style="width:100%">
+          <label>Description</label>
+          <textarea id="taskDesc" placeholder="Optional details..." style="min-height:44px"></textarea>
           <div class="row" style="margin-top:8px">
             <div style="flex:1"><label>Project</label><select id="taskProject" style="width:100%"></select></div>
             <div><label>Priority</label>
               <select id="taskPriority"><option>HIGH</option><option selected>MEDIUM</option><option>LOW</option></select>
             </div>
           </div>
+          <div class="row" style="margin-top:8px">
+            <div><label>Due date</label><input id="taskDue" type="date"></div>
+            <div style="flex:1"><label>Assignee</label><select id="taskAssignee" style="width:100%"><option value="">Unassigned</option></select></div>
+            <div><label>Repeat</label>
+              <select id="taskRepeat"><option value="NONE">None</option><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option></select>
+            </div>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:10px">
+            <input id="taskSiteVisit" type="checkbox" style="width:auto;padding:0"> <span class="muted" style="margin:0">Site visit required</span>
+          </label>
           <button style="margin-top:12px" onclick="addTask()">Add task</button>
           <p id="taskMsg"></p>
         </div>
       </div>
+
       <div class="card">
         <div class="between"><h2 style="margin:0">Tasks</h2>
           <button class="ghost" onclick="loadTasks()">Refresh</button></div>
+
+        <div class="viewtabs">
+          <button id="vtab-list" class="active" onclick="setTaskView('list')">List</button>
+          <button id="vtab-kanban" onclick="setTaskView('kanban')">Kanban</button>
+          <button id="vtab-calendar" onclick="setTaskView('calendar')">Calendar</button>
+        </div>
+
         <div class="filterbar">
           <button id="flt-ALL" class="active" onclick="setTaskFilter('ALL')">All</button>
           <button id="flt-TODO" onclick="setTaskFilter('TODO')">To do</button>
           <button id="flt-IN_PROGRESS" onclick="setTaskFilter('IN_PROGRESS')">In progress</button>
           <button id="flt-DONE" onclick="setTaskFilter('DONE')">Done</button>
+          <select id="projFilterSelect" onchange="setProjectFilter(this.value)" style="margin-left:auto">
+            <option value="">All projects</option>
+          </select>
+          <select id="sortBySelect" onchange="setSortBy(this.value)">
+            <option value="due">Sort: Due date</option>
+            <option value="priority">Sort: Priority</option>
+            <option value="newest">Sort: Newest</option>
+          </select>
         </div>
         <div id="summary" class="muted" style="margin:0 0 12px"></div>
-        <div class="tbl-wrap">
-          <table class="tbl">
-            <thead><tr><th>Task</th><th>Project</th><th>Priority</th><th>Status</th><th></th></tr></thead>
-            <tbody id="taskList"></tbody>
-          </table>
+
+        <div id="tv-list">
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>Task</th><th>Project</th><th>Assignee</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+              <tbody id="taskList"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tv-kanban" class="hidden">
+          <div class="kanban" id="kanbanBoard"></div>
+        </div>
+
+        <div id="tv-calendar" class="hidden">
+          <div class="calnav">
+            <button class="ghost" onclick="calPrev()">&lsaquo;</button>
+            <b id="calLabel"></b>
+            <button class="ghost" onclick="calNext()">&rsaquo;</button>
+          </div>
+          <div class="calgrid" id="calDow"></div>
+          <div class="calgrid" id="calGrid" style="margin-top:4px"></div>
         </div>
       </div>
     </div>
@@ -339,8 +430,25 @@
         <div id="repStats"></div>
       </div>
       <div class="card">
+        <div class="between"><h2 style="margin:0">Priority breakdown</h2>
+          <div class="row">
+            <button id="statsWeekly" class="ghost" onclick="loadStatsChart('weekly')">Weekly</button>
+            <button id="statsMonthly" class="active" onclick="loadStatsChart('monthly')">Monthly</button>
+          </div>
+        </div>
+        <div id="statsDonut"></div>
+      </div>
+      <div class="card">
         <h2>Overdue alerts</h2>
         <div id="repAlerts"></div>
+      </div>
+    </div>
+
+    <div id="view-users" class="hidden">
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Team</h2>
+          <button class="ghost" onclick="loadUsersTab()">Refresh</button></div>
+        <div id="usersList"></div>
       </div>
     </div>
 
@@ -365,9 +473,23 @@
   const TOKEN_KEY = "homeland_token";
   const STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
   let ROLE = "";
+  let MY_EMAIL = "";
   let currentChannel = "GENERAL";
   let allTasks = [];
+  let allUsers = [];
   let taskFilter = "ALL";
+  let projectFilter = "";
+  let sortBy = "due";
+  let taskView = "list";
+  let calMonth = new Date(); calMonth.setDate(1);
+  let statsRange = "monthly";
+
+  function todayStr(){ return new Date().toISOString().slice(0,10); }
+  function initialsOf(name){
+    if(!name) return "?";
+    const parts = String(name).trim().split(/\s+/);
+    return (parts[0][0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
+  }
 
   function token(){ return localStorage.getItem(TOKEN_KEY); }
   function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
@@ -398,13 +520,13 @@
     document.getElementById("app").classList.remove("hidden");
   }
 
-  const TABS = ["tasks","meetings","announcements","messages","documents","notes","attendance","timesheet","leaves","reports","notifications"];
+  const TABS = ["tasks","meetings","announcements","messages","documents","notes","attendance","timesheet","leaves","reports","users","notifications"];
   function showTab(name){
     TABS.forEach(function(t){
       document.getElementById("view-"+t).classList.toggle("hidden", t!==name);
       document.getElementById("nav-"+t).classList.toggle("active", t===name);
     });
-    if(name==="tasks"){ loadProjects(); loadTasks(); }
+    if(name==="tasks"){ loadProjects(); loadUsers(); loadTasks(); }
     if(name==="meetings") loadMeetings();
     if(name==="announcements") loadAnnouncements();
     if(name==="messages") loadMessages();
@@ -414,6 +536,7 @@
     if(name==="timesheet") loadTimesheet();
     if(name==="leaves") loadLeaves();
     if(name==="reports") loadReports();
+    if(name==="users") loadUsersTab();
     if(name==="notifications") loadNotifications();
   }
 
@@ -422,14 +545,15 @@
     const msg = document.getElementById("loginMsg");
     msg.textContent = ""; btn.disabled = true; btn.textContent = "Signing in...";
     try{
+      const emailVal = document.getElementById("email").value.trim();
       const data = await api("/api/auth/login", {
         method:"POST",
         body: JSON.stringify({
-          email: document.getElementById("email").value.trim(),
+          email: emailVal,
           password: document.getElementById("password").value
         })
       });
-      setToken(data.token); ROLE = data.role;
+      setToken(data.token); ROLE = data.role; MY_EMAIL = data.email || emailVal;
       afterLogin(data.name, data.role);
     }catch(e){ msg.textContent = e.message; }
     finally{ btn.disabled = false; btn.textContent = "Sign in"; }
@@ -453,6 +577,31 @@
     document.getElementById("projList").innerHTML = projects.map(function(p){
       return '<div class="item">'+esc(p.name)+(p.description?' <span class="muted">- '+esc(p.description)+'</span>':'')+'</div>';
     }).join("") || '<div class="muted">No projects yet.</div>';
+    const pf = document.getElementById("projFilterSelect");
+    const keep = pf.value;
+    pf.innerHTML = '<option value="">All projects</option>' + projects.map(function(p){
+      return '<option value="'+p.id+'">'+esc(p.name)+'</option>';
+    }).join("");
+    pf.value = keep;
+  }
+  async function loadUsers(){
+    allUsers = await api("/api/users");
+    const sel = document.getElementById("taskAssignee");
+    const keep = sel.value;
+    sel.innerHTML = '<option value="">Unassigned</option>' + allUsers.map(function(u){
+      return '<option value="'+u.id+'">'+esc(u.name)+'</option>';
+    }).join("");
+    sel.value = keep;
+  }
+  async function loadUsersTab(){
+    if(!allUsers.length) await loadUsers();
+    document.getElementById("usersList").innerHTML = allUsers.map(function(u){
+      const initials = u.avatarInitials || initialsOf(u.name);
+      return '<div class="item between"><div class="row" style="align-items:center;gap:10px">'+
+        '<span class="avatar" style="width:34px;height:34px;font-size:13px">'+esc(initials)+'</span>'+
+        '<div><b>'+esc(u.name)+'</b><br><span class="muted" style="font-size:12px">'+esc(u.email)+'</span></div>'+
+        '</div><span class="pill '+(u.role==="ADMIN"?"HIGH":"LOW")+'">'+esc(u.role)+'</span></div>';
+    }).join("") || '<div class="muted">No users yet.</div>';
   }
   async function addProject(){
     const msg = document.getElementById("projMsg");
@@ -472,19 +621,42 @@
     if(!title){ msg.className="err"; msg.textContent="Enter a title."; return; }
     if(!projectId){ msg.className="err"; msg.textContent="Select a project."; return; }
     msg.className="ok"; msg.textContent="";
+    const assigneeVal = document.getElementById("taskAssignee").value;
     try{
       await api("/api/tasks", { method:"POST", body: JSON.stringify({
         title: title, projectId: projectId,
-        priority: document.getElementById("taskPriority").value, status:"TODO"
+        description: document.getElementById("taskDesc").value,
+        priority: document.getElementById("taskPriority").value, status:"TODO",
+        dueDate: document.getElementById("taskDue").value || null,
+        assigneeId: assigneeVal ? Number(assigneeVal) : null,
+        repeatCycle: document.getElementById("taskRepeat").value,
+        siteVisitRequired: document.getElementById("taskSiteVisit").checked,
+        siteVisitCompleted: false
       })});
       document.getElementById("taskTitle").value = "";
+      document.getElementById("taskDesc").value = "";
+      document.getElementById("taskDue").value = "";
+      document.getElementById("taskSiteVisit").checked = false;
       msg.textContent = "Saved (stored on the server)";
       await loadTasks();
     }catch(e){ msg.className="err"; msg.textContent = e.message; }
   }
   async function loadTasks(){
     allTasks = await api("/api/tasks");
+    renderStatCards();
     renderTaskTable();
+    if(taskView==="kanban") renderKanban();
+    if(taskView==="calendar") renderCalendar();
+  }
+  function renderStatCards(){
+    const today = todayStr();
+    const total = allTasks.length;
+    const mine = allTasks.filter(function(t){ return t.assignee && t.assignee.email===MY_EMAIL; }).length;
+    const dueToday = allTasks.filter(function(t){ return t.dueDate===today && t.status!=="DONE"; }).length;
+    const pastDue = allTasks.filter(function(t){ return t.dueDate && t.dueDate<today && t.status!=="DONE"; }).length;
+    function card(label, n){ return '<div class="statcard"><div class="n">'+n+'</div><div class="l">'+label+'</div></div>'; }
+    document.getElementById("statCards").innerHTML =
+      card("Total Task", total) + card("Assigned to me", mine) + card("Due today", dueToday) + card("Past due tasks", pastDue);
   }
   function setTaskFilter(f){
     taskFilter = f;
@@ -492,34 +664,130 @@
       document.getElementById("flt-"+s).classList.toggle("active", s===f);
     });
     renderTaskTable();
+    if(taskView==="kanban") renderKanban();
   }
-  function renderTaskTable(){
+  function setProjectFilter(v){ projectFilter = v; renderTaskTable(); if(taskView==="kanban") renderKanban(); }
+  function setSortBy(v){ sortBy = v; renderTaskTable(); }
+  function setTaskView(v){
+    taskView = v;
+    ["list","kanban","calendar"].forEach(function(x){
+      document.getElementById("tv-"+x).classList.toggle("hidden", x!==v);
+      document.getElementById("vtab-"+x).classList.toggle("active", x===v);
+    });
+    if(v==="kanban") renderKanban();
+    if(v==="calendar") renderCalendar();
+  }
+  function filterTasks(){
     const q = (document.getElementById("taskSearch").value || "").toLowerCase();
-    const tasks = allTasks.filter(function(t){
+    let tasks = allTasks.filter(function(t){
       if(taskFilter!=="ALL" && t.status!==taskFilter) return false;
+      if(projectFilter && (!t.project || String(t.project.id)!==projectFilter)) return false;
       const title = (t.title||"").toLowerCase();
       const proj = (t.project && t.project.name ? t.project.name : "").toLowerCase();
       if(q && title.indexOf(q)===-1 && proj.indexOf(q)===-1) return false;
       return true;
     });
+    const prioOrder = { HIGH:0, MEDIUM:1, LOW:2 };
+    if(sortBy==="priority") tasks.sort(function(a,b){ return prioOrder[a.priority]-prioOrder[b.priority]; });
+    else if(sortBy==="newest") tasks.sort(function(a,b){ return (b.id||0)-(a.id||0); });
+    else tasks.sort(function(a,b){ return (a.dueDate||"9999").localeCompare(b.dueDate||"9999"); });
+    return tasks;
+  }
+  function dateBucket(t){
+    if(!t.dueDate) return "No due date";
+    const today = todayStr();
+    if(t.dueDate < today) return "Overdue";
+    if(t.dueDate === today) return "Due today";
+    return "Upcoming";
+  }
+  function renderTaskRow(t){
+    const overdue = t.dueDate && t.dueDate < todayStr() && t.status!=="DONE";
+    const initials = t.assignee ? (t.assignee.avatarInitials || initialsOf(t.assignee.name)) : "";
+    return '<tr>'+
+      '<td><b>'+esc(t.title)+'</b>'+(t.description?'<br><span class="muted" style="font-size:12px">'+esc(t.description)+'</span>':'')+'</td>'+
+      '<td class="muted">'+(t.project?esc(t.project.name):'')+'</td>'+
+      '<td>'+(t.assignee ? '<span class="avatar" title="'+esc(t.assignee.name)+'">'+esc(initials)+'</span>' : '<span class="muted">-</span>')+'</td>'+
+      '<td'+(overdue?' style="color:var(--red)"':'')+'>'+(t.dueDate || '-')+'</td>'+
+      '<td><span class="pill '+t.priority+'">'+t.priority+'</span></td>'+
+      '<td><select onchange="changeStatus('+t.id+', this.value)">'+
+        STATUSES.map(function(s){ return '<option '+(t.status===s?'selected':'')+'>'+s+'</option>'; }).join("")+
+      '</select></td>'+
+      '<td style="text-align:right"><button class="ghost" onclick="removeTask('+t.id+')">Delete</button></td>'+
+    '</tr>';
+  }
+  function renderTaskTable(){
+    const tasks = filterTasks();
     const counts = { HIGH:0, MEDIUM:0, LOW:0 };
     allTasks.forEach(function(t){ if(counts[t.priority]!==undefined) counts[t.priority]++; });
     document.getElementById("summary").innerHTML =
       '<span class="pill HIGH">High '+counts.HIGH+'</span> '+
       '<span class="pill MEDIUM">Medium '+counts.MEDIUM+'</span> '+
       '<span class="pill LOW">Low '+counts.LOW+'</span> - total '+allTasks.length;
-    document.getElementById("taskList").innerHTML = tasks.map(function(t){
-      return '<tr>'+
-        '<td><b>'+esc(t.title)+'</b></td>'+
-        '<td class="muted">'+(t.project?esc(t.project.name):'')+'</td>'+
-        '<td><span class="pill '+t.priority+'">'+t.priority+'</span></td>'+
-        '<td><select onchange="changeStatus('+t.id+', this.value)">'+
-          STATUSES.map(function(s){ return '<option '+(t.status===s?'selected':'')+'>'+s+'</option>'; }).join("")+
-        '</select></td>'+
-        '<td style="text-align:right"><button class="ghost" onclick="removeTask('+t.id+')">Delete</button></td>'+
-      '</tr>';
-    }).join("") || '<tr><td colspan="5" class="muted">No tasks match.</td></tr>';
+    const order = ["Overdue","Due today","Upcoming","No due date"];
+    const groups = {}; order.forEach(function(o){ groups[o] = []; });
+    tasks.forEach(function(t){ groups[dateBucket(t)].push(t); });
+    let rows = "";
+    order.forEach(function(g){
+      const list = groups[g];
+      if(!list.length) return;
+      rows += '<tr class="grouprow"><td colspan="7"><div class="grouphead">'+g+' <span class="n">'+list.length+'</span></div></td></tr>';
+      rows += list.map(renderTaskRow).join("");
+    });
+    document.getElementById("taskList").innerHTML = rows || '<tr><td colspan="7" class="muted">No tasks match.</td></tr>';
   }
+  function renderKanban(){
+    const tasks = filterTasks();
+    const cols = { TODO:[], IN_PROGRESS:[], DONE:[] };
+    tasks.forEach(function(t){ if(cols[t.status]) cols[t.status].push(t); });
+    const labels = { TODO:"To do", IN_PROGRESS:"In progress", DONE:"Done" };
+    const nextStatus = { TODO:"IN_PROGRESS", IN_PROGRESS:"DONE", DONE:null };
+    var Q = String.fromCharCode(39);
+    document.getElementById("kanbanBoard").innerHTML = STATUSES.map(function(s){
+      const list = cols[s];
+      const nxt = nextStatus[s];
+      return '<div class="kcol"><h3>'+labels[s]+' <span class="n">'+list.length+'</span></h3>'+
+        (list.map(function(t){
+          return '<div class="kcard"><b>'+esc(t.title)+'</b>'+
+            '<div class="muted" style="font-size:11px">'+(t.project?esc(t.project.name):'')+'</div>'+
+            '<div class="kmeta"><span class="pill '+t.priority+'">'+t.priority+'</span>'+
+            (nxt ? '<button class="ghost" onclick="changeStatus('+t.id+','+Q+nxt+Q+')">Move &#9656;</button>' : '<span class="muted">Done</span>')+
+            '</div></div>';
+        }).join("") || '<div class="muted" style="font-size:12px">No tasks</div>')+
+      '</div>';
+    }).join("");
+  }
+  function renderCalendar(){
+    document.getElementById("calDow").innerHTML = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(function(d){
+      return '<div class="dow">'+d+'</div>';
+    }).join("");
+    const y = calMonth.getFullYear(), m = calMonth.getMonth();
+    document.getElementById("calLabel").textContent = calMonth.toLocaleString([], { month:"long", year:"numeric" });
+    const first = new Date(y, m, 1);
+    const startDow = first.getDay();
+    const daysInMonth = new Date(y, m+1, 0).getDate();
+    const prevDays = new Date(y, m, 0).getDate();
+    const today = todayStr();
+    const counts = {};
+    allTasks.forEach(function(t){ if(t.dueDate) counts[t.dueDate] = (counts[t.dueDate]||0) + 1; });
+    let cells = "";
+    for(let i=startDow-1; i>=0; i--) cells += '<div class="calcell other"><span class="d">'+(prevDays-i)+'</span></div>';
+    for(let d=1; d<=daysInMonth; d++){
+      const ds = y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+      const c = counts[ds] || 0;
+      const isToday = ds===today;
+      let dots = "";
+      for(let k=0; k<Math.min(c,4); k++) dots += '<span class="dot"></span>';
+      cells += '<div class="calcell'+(isToday?' today':'')+'"><span class="d">'+d+'</span>'+
+        (c ? '<div>'+dots+(c>4?' <span class="muted" style="font-size:10px">+'+(c-4)+'</span>':'')+'</div>' : '')+
+        '</div>';
+    }
+    const totalCells = startDow + daysInMonth;
+    const rem = (7 - (totalCells % 7)) % 7;
+    for(let d=1; d<=rem; d++) cells += '<div class="calcell other"><span class="d">'+d+'</span></div>';
+    document.getElementById("calGrid").innerHTML = cells;
+  }
+  function calPrev(){ calMonth.setMonth(calMonth.getMonth()-1); renderCalendar(); }
+  function calNext(){ calMonth.setMonth(calMonth.getMonth()+1); renderCalendar(); }
   async function changeStatus(id, status){
     try{ await api("/api/tasks/"+id+"/status", { method:"PATCH", body: JSON.stringify({ status: status }) }); await loadTasks(); }
     catch(e){ alert(e.message); }
@@ -785,13 +1053,36 @@
     document.getElementById("repAlerts").innerHTML = alerts.map(function(a){
       return '<div class="item between"><div><b>'+esc(a.title)+'</b> <span class="muted">'+esc(a.project||"")+'</span></div><span class="pill HIGH">due '+esc(a.dueDate)+'</span></div>';
     }).join("") || '<div class="muted">No overdue tasks. All caught up.</div>';
+    await loadStatsChart(statsRange);
+  }
+  async function loadStatsChart(range){
+    statsRange = range;
+    document.getElementById("statsWeekly").className = range==="weekly" ? "active" : "ghost";
+    document.getElementById("statsMonthly").className = range==="monthly" ? "active" : "ghost";
+    const st = await api("/api/stats/summary?range="+range);
+    const p = st.byPriority || { HIGH:0, MEDIUM:0, LOW:0 };
+    const total = (p.HIGH||0) + (p.MEDIUM||0) + (p.LOW||0);
+    let html;
+    if(total===0){
+      html = '<div class="muted">No tasks in this period.</div>';
+    } else {
+      const highPct = p.HIGH/total*100, medPct = p.MEDIUM/total*100;
+      const g = "conic-gradient(var(--red) 0 "+highPct+"%, var(--amber) "+highPct+"% "+(highPct+medPct)+"%, var(--green) "+(highPct+medPct)+"% 100%)";
+      html = '<div class="row" style="align-items:center;gap:20px">'+
+        '<div class="donut" style="background:'+g+'"></div>'+
+        '<div><div><span class="pill HIGH">High '+p.HIGH+'</span></div>'+
+        '<div style="margin-top:6px"><span class="pill MEDIUM">Medium '+p.MEDIUM+'</span></div>'+
+        '<div style="margin-top:6px"><span class="pill LOW">Low '+p.LOW+'</span></div>'+
+        '<div class="muted" style="margin-top:6px;font-size:12px">'+total+' task(s) - '+range+'</div></div></div>';
+    }
+    document.getElementById("statsDonut").innerHTML = html;
   }
 
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, function(c){
     return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 
   if (token()){
-    api("/api/auth/me").then(function(u){ ROLE=u.role; afterLogin(u.name, u.role); })
+    api("/api/auth/me").then(function(u){ ROLE=u.role; MY_EMAIL=u.email||""; afterLogin(u.name, u.role); })
       .catch(function(){ clearToken(); showLogin(); });
   }
 </script>
