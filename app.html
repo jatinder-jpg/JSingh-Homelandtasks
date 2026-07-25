@@ -91,6 +91,7 @@
       <button id="nav-attendance" onclick="showTab('attendance')">Attendance</button>
       <button id="nav-timesheet" onclick="showTab('timesheet')">Timesheet</button>
       <button id="nav-leaves" onclick="showTab('leaves')">Leaves</button>
+      <button id="nav-reports" onclick="showTab('reports')">Reports</button>
       <button id="nav-notifications" onclick="showTab('notifications')">Notifications</button>
     </div>
 
@@ -279,6 +280,17 @@
       </div>
     </div>
 
+    <div id="view-reports" class="hidden">
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Overview</h2><button class="ghost" onclick="loadReports()">Refresh</button></div>
+        <div id="repStats"></div>
+      </div>
+      <div class="card">
+        <h2>Overdue alerts</h2>
+        <div id="repAlerts"></div>
+      </div>
+    </div>
+
     <div id="view-notifications" class="hidden">
       <div class="card">
         <div class="between"><h2 style="margin:0">Notifications</h2>
@@ -329,7 +341,7 @@
     document.getElementById("app").classList.remove("hidden");
   }
 
-  const TABS = ["tasks","meetings","announcements","messages","documents","notes","attendance","timesheet","leaves","notifications"];
+  const TABS = ["tasks","meetings","announcements","messages","documents","notes","attendance","timesheet","leaves","reports","notifications"];
   function showTab(name){
     TABS.forEach(function(t){
       document.getElementById("view-"+t).classList.toggle("hidden", t!==name);
@@ -344,6 +356,7 @@
     if(name==="attendance") loadAttendance();
     if(name==="timesheet") loadTimesheet();
     if(name==="leaves") loadLeaves();
+    if(name==="reports") loadReports();
     if(name==="notifications") loadNotifications();
   }
 
@@ -682,6 +695,19 @@
       const n = r && r.count ? r.count : 0;
       b.textContent = n; b.classList.toggle("hidden", n===0);
     }catch(e){}
+  }
+
+  async function loadReports(){
+    const s = await api("/api/reports/summary");
+    function stat(label,val){ return '<span class="pill" style="margin:2px 4px 2px 0">'+label+': '+val+'</span>'; }
+    let html = '<div style="margin-bottom:10px">'+stat("Total tasks",s.totalTasks)+stat("Projects",s.projects)+stat("Meetings",s.meetings)+stat("My hours",s.myHoursLogged)+stat("My pending leaves",s.myPendingLeaves)+stat("My attendance days",s.myAttendanceDays)+'</div>';
+    html += '<div class="muted" style="margin-bottom:4px">Tasks by status</div><div>'+Object.keys(s.tasksByStatus).map(function(k){return stat(k,s.tasksByStatus[k]);}).join("")+'</div>';
+    html += '<div class="muted" style="margin:8px 0 4px">Tasks by priority</div><div>'+Object.keys(s.tasksByPriority).map(function(k){return '<span class="pill '+k+'" style="margin:2px 4px 2px 0">'+k+': '+s.tasksByPriority[k]+'</span>';}).join("")+'</div>';
+    document.getElementById("repStats").innerHTML = html;
+    const alerts = await api("/api/alerts");
+    document.getElementById("repAlerts").innerHTML = alerts.map(function(a){
+      return '<div class="item between"><div><b>'+esc(a.title)+'</b> <span class="muted">'+esc(a.project||"")+'</span></div><span class="pill HIGH">due '+esc(a.dueDate)+'</span></div>';
+    }).join("") || '<div class="muted">No overdue tasks. All caught up.</div>';
   }
 
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, function(c){
