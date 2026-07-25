@@ -127,6 +127,54 @@
 
   /* ---- Priority donut ---- */
   .donut{width:110px;height:110px;border-radius:50%;flex-shrink:0}
+
+  /* ---- Light theme override ---- */
+  body[data-theme="light"]{
+    --bg:#f3f2ec; --panel:#ffffff; --border:#e0ddd0; --text:#1c2333; --muted:#6b7284;
+    --blue:#b9832c; --green:#1f9d5b; --amber:#c98108; --red:#d13c47; --shadow:0 1px 4px rgba(0,0,0,.08);
+  }
+  body[data-theme="light"] input,body[data-theme="light"] select,
+  body[data-theme="light"] button,body[data-theme="light"] textarea{background:#fff}
+  body[data-theme="light"] .kcol{background:#eceae0}
+  body[data-theme="light"] .sidenav button.active,body[data-theme="light"] button:not(.ghost){color:#fff}
+  body[data-theme="light"] .kcard button.ghost,body[data-theme="light"] button.ghost{color:var(--muted)}
+
+  /* ---- What's New banner ---- */
+  .whatsnew{background:linear-gradient(135deg,#1d2748,#182246);border:1px solid var(--border);
+    border-left:4px solid var(--blue);border-radius:10px;padding:12px 16px;margin-bottom:16px;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .whatsnew b{display:block;margin-bottom:4px}
+  .whatsnew ul{margin:4px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
+  .whatsnew button{flex-shrink:0}
+
+  /* ---- Checkbox in task table ---- */
+  .chk{width:18px;height:18px;padding:0;cursor:pointer}
+  .tclick{cursor:pointer}
+  .tclick:hover{text-decoration:underline}
+
+  /* ---- Modal ---- */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;
+    align-items:flex-start;justify-content:center;padding:6vh 16px;z-index:50;overflow-y:auto}
+  .modal-overlay.hidden{display:none}
+  .modal-box{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:22px;max-width:560px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  .modal-box .between{margin-bottom:10px}
+  .modal-section{margin-top:16px}
+  .modal-section h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+  .subrow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
+  .subrow span{flex:1}
+  .subrow.done span{text-decoration:line-through;color:var(--muted)}
+  .comment{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px}
+  .comment .who{font-size:11px;color:var(--muted);margin-bottom:2px}
+
+  /* ---- Vote buttons ---- */
+  .votebox{display:flex;align-items:center;gap:4px;flex-shrink:0}
+  .votebox button{padding:2px 7px;font-size:12px;background:transparent;border:1px solid var(--border);color:var(--muted)}
+  .votebox .n{font-size:12px;color:var(--muted);min-width:16px;text-align:center}
+
+  /* ---- Drag drop kanban ---- */
+  .kcard[draggable="true"]{cursor:grab}
+  .kcol.dragover{border-color:var(--blue);background:#182246}
 </style>
 </head>
 <body>
@@ -165,10 +213,12 @@
         <button id="nav-users" onclick="showTab('users')">Users</button>
         <button id="nav-notifications" onclick="showTab('notifications')">Notifications
           <span id="bell2" class="badge-count hidden">0</span></button>
+        <button id="nav-settings" onclick="showTab('settings')">Settings</button>
       </div>
       <div class="sidefoot">
         <span id="who" class="muted" style="display:block;font-size:12px;margin-bottom:8px"></span>
-        <button class="ghost" style="width:100%" onclick="logout()">Sign out</button>
+        <button class="ghost" style="width:100%" onclick="toggleTheme()" id="themeBtn">Dark mode</button>
+        <button class="ghost" style="width:100%;margin-top:6px" onclick="logout()">Sign out</button>
       </div>
     </div>
 
@@ -181,6 +231,19 @@
       </div>
 
     <div id="view-tasks">
+      <div id="whatsNew" class="whatsnew hidden">
+        <div>
+          <b>What's new</b>
+          <ul>
+            <li>Click a task title to open its checklist and comment thread</li>
+            <li>Tick the checkbox next to a task to complete it instantly</li>
+            <li>Archive finished tasks and restore them later</li>
+            <li>Drag Kanban cards between columns</li>
+            <li>Upvote/downvote messages, invite teammates, and switch to light mode in Settings</li>
+          </ul>
+        </div>
+        <button class="ghost" onclick="dismissWhatsNew()">Dismiss</button>
+      </div>
       <div class="statgrid" id="statCards"></div>
 
       <div class="grid">
@@ -235,6 +298,7 @@
           <button id="flt-TODO" onclick="setTaskFilter('TODO')">To do</button>
           <button id="flt-IN_PROGRESS" onclick="setTaskFilter('IN_PROGRESS')">In progress</button>
           <button id="flt-DONE" onclick="setTaskFilter('DONE')">Done</button>
+          <button id="flt-archived" onclick="toggleShowArchived()">Show archived</button>
           <select id="projFilterSelect" onchange="setProjectFilter(this.value)" style="margin-left:auto">
             <option value="">All projects</option>
           </select>
@@ -249,7 +313,7 @@
         <div id="tv-list">
           <div class="tbl-wrap">
             <table class="tbl">
-              <thead><tr><th>Task</th><th>Project</th><th>Assignee</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th></th><th>Task</th><th>Project</th><th>Assignee</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead>
               <tbody id="taskList"></tbody>
             </table>
           </div>
@@ -454,9 +518,44 @@
 
     <div id="view-notifications" class="hidden">
       <div class="card">
+        <h2>Send an alert</h2>
+        <div class="row">
+          <div style="flex:1"><label>To</label><select id="alertTo" style="width:100%"></select></div>
+          <div style="flex:2"><label>Message</label><input id="alertMsg" style="width:100%" placeholder="Please review the site visit report by EOD"></div>
+          <button onclick="sendAlert()">Send</button>
+        </div>
+        <p id="alertStatus"></p>
+      </div>
+      <div class="card">
         <div class="between"><h2 style="margin:0">Notifications</h2>
           <button class="ghost" onclick="loadNotifications()">Refresh</button></div>
         <div id="notifList"></div>
+      </div>
+    </div>
+
+    <div id="view-settings" class="hidden">
+      <div class="card">
+        <h2>Appearance</h2>
+        <p class="muted" style="margin-top:0">Choose how HOMELAND TASKS looks on this device.</p>
+        <div class="row">
+          <button id="theme-dark" onclick="setTheme('dark')">Dark</button>
+          <button id="theme-light" class="ghost" onclick="setTheme('light')">Light</button>
+        </div>
+      </div>
+      <div id="inviteCard" class="card hidden">
+        <h2>Invite a teammate (admin)</h2>
+        <div class="row">
+          <div style="flex:1"><label>Name</label><input id="invName" style="width:100%" placeholder="Full name"></div>
+          <div style="flex:1"><label>Email</label><input id="invEmail" style="width:100%" placeholder="name@homelandgroup.org"></div>
+          <div><label>Role</label><select id="invRole"><option value="MEMBER">Member</option><option value="ADMIN">Admin</option></select></div>
+        </div>
+        <button style="margin-top:12px" onclick="inviteTeammate()">Send invite</button>
+        <p class="muted" style="font-size:12px">Starter password is <code>homeland123</code> - they should change it after first sign-in.</p>
+        <p id="invMsg"></p>
+      </div>
+      <div class="card">
+        <h2>About</h2>
+        <p class="muted" style="margin:0">Signed in as <span id="settingsWho"></span>.</p>
       </div>
     </div>
 
@@ -465,6 +564,35 @@
     </p>
     </div>
    </div>
+  </div>
+</div>
+
+<div id="taskModal" class="modal-overlay hidden" onclick="if(event.target===this) closeTaskDetail()">
+  <div class="modal-box">
+    <div class="between">
+      <h2 id="tmTitle" style="margin:0"></h2>
+      <button class="ghost" onclick="closeTaskDetail()">Close</button>
+    </div>
+    <p id="tmDesc" class="muted" style="margin-top:0"></p>
+    <div id="tmMeta" class="row" style="margin-bottom:4px"></div>
+
+    <div class="modal-section">
+      <h3>Checklist</h3>
+      <div id="tmSubtasks"></div>
+      <div class="row" style="margin-top:8px">
+        <input id="tmNewSubtask" placeholder="Add checklist item..." style="flex:1">
+        <button onclick="addSubtask()">Add</button>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Comments</h3>
+      <div id="tmComments" style="max-height:200px;overflow-y:auto"></div>
+      <div class="row" style="margin-top:8px">
+        <input id="tmNewComment" placeholder="Write a comment..." style="flex:1">
+        <button onclick="addComment()">Post</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -483,6 +611,9 @@
   let taskView = "list";
   let calMonth = new Date(); calMonth.setDate(1);
   let statsRange = "monthly";
+  let showArchived = false;
+  let activeTaskId = null;
+  let draggingTaskId = null;
 
   function todayStr(){ return new Date().toISOString().slice(0,10); }
   function initialsOf(name){
@@ -520,13 +651,13 @@
     document.getElementById("app").classList.remove("hidden");
   }
 
-  const TABS = ["tasks","meetings","announcements","messages","documents","notes","attendance","timesheet","leaves","reports","users","notifications"];
+  const TABS = ["tasks","meetings","announcements","messages","documents","notes","attendance","timesheet","leaves","reports","users","notifications","settings"];
   function showTab(name){
     TABS.forEach(function(t){
       document.getElementById("view-"+t).classList.toggle("hidden", t!==name);
       document.getElementById("nav-"+t).classList.toggle("active", t===name);
     });
-    if(name==="tasks"){ loadProjects(); loadUsers(); loadTasks(); }
+    if(name==="tasks"){ loadProjects(); loadUsers(); loadTasks(); maybeShowWhatsNew(); }
     if(name==="meetings") loadMeetings();
     if(name==="announcements") loadAnnouncements();
     if(name==="messages") loadMessages();
@@ -537,7 +668,8 @@
     if(name==="leaves") loadLeaves();
     if(name==="reports") loadReports();
     if(name==="users") loadUsersTab();
-    if(name==="notifications") loadNotifications();
+    if(name==="notifications") loadNotificationsTab();
+    if(name==="settings") loadSettingsTab();
   }
 
   async function doLogin(){
@@ -562,7 +694,10 @@
   function afterLogin(name, role){
     document.getElementById("who").textContent = name + " - " + role;
     document.getElementById("annCompose").classList.toggle("hidden", role !== "ADMIN");
+    document.getElementById("inviteCard").classList.toggle("hidden", role !== "ADMIN");
+    document.getElementById("settingsWho").textContent = name + " (" + MY_EMAIL + ") - " + role;
     showApp();
+    initTheme();
     showTab("tasks");
     refreshBell();
   }
@@ -642,11 +777,16 @@
     }catch(e){ msg.className="err"; msg.textContent = e.message; }
   }
   async function loadTasks(){
-    allTasks = await api("/api/tasks");
+    allTasks = await api("/api/tasks?includeArchived=" + showArchived);
     renderStatCards();
     renderTaskTable();
     if(taskView==="kanban") renderKanban();
     if(taskView==="calendar") renderCalendar();
+  }
+  function toggleShowArchived(){
+    showArchived = !showArchived;
+    document.getElementById("flt-archived").classList.toggle("active", showArchived);
+    loadTasks();
   }
   function renderStatCards(){
     const today = todayStr();
@@ -703,8 +843,14 @@
   function renderTaskRow(t){
     const overdue = t.dueDate && t.dueDate < todayStr() && t.status!=="DONE";
     const initials = t.assignee ? (t.assignee.avatarInitials || initialsOf(t.assignee.name)) : "";
+    const archBtn = t.archived
+      ? '<button class="ghost" onclick="restoreTask('+t.id+')">Restore</button>'
+      : '<button class="ghost" onclick="archiveTask('+t.id+')">Archive</button>';
     return '<tr>'+
-      '<td><b>'+esc(t.title)+'</b>'+(t.description?'<br><span class="muted" style="font-size:12px">'+esc(t.description)+'</span>':'')+'</td>'+
+      '<td><input type="checkbox" class="chk" '+(t.status==="DONE"?"checked":"")+' onchange="quickComplete('+t.id+', this.checked)" title="Mark done"></td>'+
+      '<td><b class="tclick" onclick="openTaskDetail('+t.id+')">'+esc(t.title)+'</b>'+
+        (t.archived?' <span class="pill">Archived</span>':'')+
+        (t.description?'<br><span class="muted" style="font-size:12px">'+esc(t.description)+'</span>':'')+'</td>'+
       '<td class="muted">'+(t.project?esc(t.project.name):'')+'</td>'+
       '<td>'+(t.assignee ? '<span class="avatar" title="'+esc(t.assignee.name)+'">'+esc(initials)+'</span>' : '<span class="muted">-</span>')+'</td>'+
       '<td'+(overdue?' style="color:var(--red)"':'')+'>'+(t.dueDate || '-')+'</td>'+
@@ -712,7 +858,7 @@
       '<td><select onchange="changeStatus('+t.id+', this.value)">'+
         STATUSES.map(function(s){ return '<option '+(t.status===s?'selected':'')+'>'+s+'</option>'; }).join("")+
       '</select></td>'+
-      '<td style="text-align:right"><button class="ghost" onclick="removeTask('+t.id+')">Delete</button></td>'+
+      '<td style="text-align:right;white-space:nowrap">'+archBtn+' <button class="ghost" onclick="removeTask('+t.id+')">Delete</button></td>'+
     '</tr>';
   }
   function renderTaskTable(){
@@ -730,10 +876,10 @@
     order.forEach(function(g){
       const list = groups[g];
       if(!list.length) return;
-      rows += '<tr class="grouprow"><td colspan="7"><div class="grouphead">'+g+' <span class="n">'+list.length+'</span></div></td></tr>';
+      rows += '<tr class="grouprow"><td colspan="8"><div class="grouphead">'+g+' <span class="n">'+list.length+'</span></div></td></tr>';
       rows += list.map(renderTaskRow).join("");
     });
-    document.getElementById("taskList").innerHTML = rows || '<tr><td colspan="7" class="muted">No tasks match.</td></tr>';
+    document.getElementById("taskList").innerHTML = rows || '<tr><td colspan="8" class="muted">No tasks match.</td></tr>';
   }
   function renderKanban(){
     const tasks = filterTasks();
@@ -745,9 +891,9 @@
     document.getElementById("kanbanBoard").innerHTML = STATUSES.map(function(s){
       const list = cols[s];
       const nxt = nextStatus[s];
-      return '<div class="kcol"><h3>'+labels[s]+' <span class="n">'+list.length+'</span></h3>'+
+      return '<div class="kcol" ondragover="allowDrop(event)" ondragleave="this.classList.remove('+Q+'dragover'+Q+')" ondrop="dropOnColumn(event,'+Q+s+Q+')"><h3>'+labels[s]+' <span class="n">'+list.length+'</span></h3>'+
         (list.map(function(t){
-          return '<div class="kcard"><b>'+esc(t.title)+'</b>'+
+          return '<div class="kcard" draggable="true" ondragstart="dragStart(event,'+t.id+')"><b class="tclick" onclick="openTaskDetail('+t.id+')">'+esc(t.title)+'</b>'+
             '<div class="muted" style="font-size:11px">'+(t.project?esc(t.project.name):'')+'</div>'+
             '<div class="kmeta"><span class="pill '+t.priority+'">'+t.priority+'</span>'+
             (nxt ? '<button class="ghost" onclick="changeStatus('+t.id+','+Q+nxt+Q+')">Move &#9656;</button>' : '<span class="muted">Done</span>')+
@@ -755,6 +901,14 @@
         }).join("") || '<div class="muted" style="font-size:12px">No tasks</div>')+
       '</div>';
     }).join("");
+  }
+  function dragStart(ev, id){ draggingTaskId = id; ev.dataTransfer.setData("text/plain", String(id)); }
+  function allowDrop(ev){ ev.preventDefault(); ev.currentTarget.classList.add("dragover"); }
+  function dropOnColumn(ev, status){
+    ev.preventDefault(); ev.currentTarget.classList.remove("dragover");
+    const id = draggingTaskId || Number(ev.dataTransfer.getData("text/plain"));
+    draggingTaskId = null;
+    if(id) changeStatus(id, status);
   }
   function renderCalendar(){
     document.getElementById("calDow").innerHTML = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(function(d){
@@ -795,6 +949,78 @@
   async function removeTask(id){
     try{ await api("/api/tasks/"+id, { method:"DELETE" }); await loadTasks(); }
     catch(e){ alert(e.message); }
+  }
+  async function quickComplete(id, checked){
+    try{ await api("/api/tasks/"+id+"/status", { method:"PATCH", body: JSON.stringify({ status: checked ? "DONE" : "TODO" }) }); await loadTasks(); }
+    catch(e){ alert(e.message); }
+  }
+  async function archiveTask(id){
+    try{ await api("/api/tasks/"+id+"/archive", { method:"PATCH" }); await loadTasks(); }
+    catch(e){ alert(e.message); }
+  }
+  async function restoreTask(id){
+    try{ await api("/api/tasks/"+id+"/restore", { method:"PATCH" }); await loadTasks(); }
+    catch(e){ alert(e.message); }
+  }
+
+  async function openTaskDetail(id){
+    activeTaskId = id;
+    const t = allTasks.find(function(x){ return x.id===id; }) || await api("/api/tasks/"+id);
+    document.getElementById("tmTitle").textContent = t.title;
+    document.getElementById("tmDesc").textContent = t.description || "No description.";
+    document.getElementById("tmMeta").innerHTML =
+      '<span class="pill '+t.priority+'">'+t.priority+'</span>'+
+      '<span class="pill">'+t.status+'</span>'+
+      (t.dueDate ? '<span class="pill">Due '+esc(t.dueDate)+'</span>' : '')+
+      (t.assignee ? '<span class="pill">'+esc(t.assignee.name)+'</span>' : '');
+    document.getElementById("taskModal").classList.remove("hidden");
+    await Promise.all([loadSubtasks(id), loadComments(id)]);
+  }
+  function closeTaskDetail(){
+    document.getElementById("taskModal").classList.add("hidden");
+    activeTaskId = null;
+  }
+  async function loadSubtasks(taskId){
+    const list = await api("/api/tasks/"+taskId+"/subtasks");
+    document.getElementById("tmSubtasks").innerHTML = list.map(function(s){
+      return '<div class="subrow'+(s.done?' done':'')+'">'+
+        '<input type="checkbox" '+(s.done?"checked":"")+' onchange="toggleSubtaskDone('+taskId+','+s.id+', this.checked)">'+
+        '<span>'+esc(s.title)+'</span>'+
+        '<button class="ghost" onclick="deleteSubtaskItem('+taskId+','+s.id+')">x</button>'+
+      '</div>';
+    }).join("") || '<div class="muted" style="font-size:13px">No checklist items yet.</div>';
+  }
+  async function addSubtask(){
+    const input = document.getElementById("tmNewSubtask");
+    const title = input.value.trim();
+    if(!title || !activeTaskId) return;
+    try{
+      await api("/api/tasks/"+activeTaskId+"/subtasks", { method:"POST", body: JSON.stringify({ title: title }) });
+      input.value = ""; await loadSubtasks(activeTaskId);
+    }catch(e){ alert(e.message); }
+  }
+  async function toggleSubtaskDone(taskId, id, done){
+    try{ await api("/api/tasks/"+taskId+"/subtasks/"+id, { method:"PATCH", body: JSON.stringify({ done: done }) }); await loadSubtasks(taskId); }
+    catch(e){ alert(e.message); }
+  }
+  async function deleteSubtaskItem(taskId, id){
+    try{ await api("/api/tasks/"+taskId+"/subtasks/"+id, { method:"DELETE" }); await loadSubtasks(taskId); }
+    catch(e){ alert(e.message); }
+  }
+  async function loadComments(taskId){
+    const list = await api("/api/tasks/"+taskId+"/comments");
+    document.getElementById("tmComments").innerHTML = list.map(function(c){
+      return '<div class="comment"><div class="who">'+esc(c.userEmail||"")+'</div>'+esc(c.text||"")+'</div>';
+    }).join("") || '<div class="muted" style="font-size:13px">No comments yet.</div>';
+  }
+  async function addComment(){
+    const input = document.getElementById("tmNewComment");
+    const text = input.value.trim();
+    if(!text || !activeTaskId) return;
+    try{
+      await api("/api/tasks/"+activeTaskId+"/comments", { method:"POST", body: JSON.stringify({ text: text }) });
+      input.value = ""; await loadComments(activeTaskId);
+    }catch(e){ alert(e.message); }
   }
 
   async function addMeeting(){
@@ -867,9 +1093,18 @@
     const list = await api("/api/messages/"+currentChannel);
     const box = document.getElementById("msgList");
     box.innerHTML = list.map(function(m){
-      return '<div class="msg"><div class="who">'+esc(m.userEmail||"")+'</div>'+esc(m.text||"")+'</div>';
+      return '<div class="msg between"><div style="flex:1"><div class="who">'+esc(m.userEmail||"")+'</div>'+esc(m.text||"")+'</div>'+
+        '<div class="votebox">'+
+          '<button onclick="voteMessage('+m.id+',1)">&#9650;</button>'+
+          '<span class="n">'+(m.votes||0)+'</span>'+
+          '<button onclick="voteMessage('+m.id+',-1)">&#9660;</button>'+
+        '</div></div>';
     }).join("") || '<div class="muted">No messages yet.</div>';
     box.scrollTop = box.scrollHeight;
+  }
+  async function voteMessage(id, delta){
+    try{ await api("/api/messages/"+currentChannel+"/"+id+"/vote", { method:"PATCH", body: JSON.stringify({ delta: delta }) }); await loadMessages(); }
+    catch(e){ alert(e.message); }
   }
   async function sendMessage(){
     const msg = document.getElementById("msgMsg");
@@ -916,12 +1151,38 @@
       document.getElementById("noteText").value=""; msg.textContent="Saved"; await loadNotes();
     }catch(e){ msg.className="err"; msg.textContent = e.message; }
   }
+  let notesCache = [];
   async function loadNotes(){
-    const list = await api("/api/notes");
-    document.getElementById("noteList").innerHTML = list.map(function(n){
-      return '<div class="note between"><span>'+esc(n.content||"")+'</span>'+
+    notesCache = await api("/api/notes");
+    renderNotes();
+  }
+  function renderNotes(){
+    var Q = String.fromCharCode(39);
+    document.getElementById("noteList").innerHTML = notesCache.map(function(n){
+      if(n._editing){
+        return '<div class="note"><textarea id="noteEdit'+n.id+'" style="min-height:44px">'+esc(n.content||"")+'</textarea>'+
+          '<div class="row" style="margin-top:6px"><button onclick="saveNote('+n.id+')">Save</button>'+
+          '<button class="ghost" onclick="cancelEditNote('+n.id+')">Cancel</button></div></div>';
+      }
+      return '<div class="note between"><span class="tclick" onclick="startEditNote('+n.id+')">'+esc(n.content||"")+'</span>'+
         '<button class="ghost" onclick="deleteNote('+n.id+')">x</button></div>';
     }).join("") || '<div class="muted">No notes yet.</div>';
+  }
+  function startEditNote(id){
+    notesCache.forEach(function(n){ n._editing = (n.id===id); });
+    renderNotes();
+  }
+  function cancelEditNote(id){
+    notesCache.forEach(function(n){ n._editing = false; });
+    renderNotes();
+  }
+  async function saveNote(id){
+    const content = document.getElementById("noteEdit"+id).value.trim();
+    if(!content) return;
+    try{
+      await api("/api/notes/"+id, { method:"PUT", body: JSON.stringify({ content: content }) });
+      await loadNotes();
+    }catch(e){ alert(e.message); }
   }
   async function deleteNote(id){
     try{ await api("/api/notes/"+id, { method:"DELETE" }); await loadNotes(); }
@@ -1031,6 +1292,26 @@
     try{ await api("/api/notifications/"+id+"/read", { method:"PATCH" }); await loadNotifications(); }
     catch(e){ alert(e.message); }
   }
+  async function loadNotificationsTab(){
+    if(!allUsers.length) await loadUsers();
+    const sel = document.getElementById("alertTo");
+    const keep = sel.value;
+    sel.innerHTML = allUsers.map(function(u){ return '<option value="'+esc(u.email)+'">'+esc(u.name)+'</option>'; }).join("");
+    sel.value = keep;
+    await loadNotifications();
+  }
+  async function sendAlert(){
+    const s = document.getElementById("alertStatus");
+    const to = document.getElementById("alertTo").value;
+    const message = document.getElementById("alertMsg").value.trim();
+    if(!to || !message){ s.className="err"; s.textContent="Pick a teammate and write a message."; return; }
+    s.className="ok"; s.textContent="";
+    try{
+      await api("/api/notifications", { method:"POST", body: JSON.stringify({ userEmail: to, message: message }) });
+      document.getElementById("alertMsg").value="";
+      s.textContent = "Alert sent"; await loadNotifications();
+    }catch(e){ s.className="err"; s.textContent = e.message; }
+  }
   async function refreshBell(){
     try{
       const r = await api("/api/notifications/unread-count");
@@ -1057,6 +1338,7 @@
   }
   async function loadStatsChart(range){
     statsRange = range;
+    document.getElementById("statsWeekly").classList.toggle("active", range==="weekly");
     document.getElementById("statsWeekly").className = range==="weekly" ? "active" : "ghost";
     document.getElementById("statsMonthly").className = range==="monthly" ? "active" : "ghost";
     const st = await api("/api/stats/summary?range="+range);
@@ -1081,6 +1363,48 @@
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, function(c){
     return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 
+  function initTheme(){
+    const saved = localStorage.getItem("taskpad-theme8") || "dark";
+    applyTheme(saved);
+  }
+  function applyTheme(theme){
+    document.body.setAttribute("data-theme", theme);
+    localStorage.setItem("taskpad-theme8", theme);
+    const btn = document.getElementById("themeBtn");
+    if(btn) btn.textContent = theme==="light" ? "Dark mode" : "Light mode";
+    const d = document.getElementById("theme-dark"), l = document.getElementById("theme-light");
+    if(d && l){ d.className = theme==="dark" ? "" : "ghost"; l.className = theme==="light" ? "" : "ghost"; }
+  }
+  function setTheme(theme){ applyTheme(theme); }
+  function toggleTheme(){ applyTheme((document.body.getAttribute("data-theme")||"dark")==="dark" ? "light" : "dark"); }
+
+  function loadSettingsTab(){ /* content is static; theme buttons already reflect state via applyTheme */ }
+
+  async function inviteTeammate(){
+    const msg = document.getElementById("invMsg");
+    const name = document.getElementById("invName").value.trim();
+    const email = document.getElementById("invEmail").value.trim();
+    const role = document.getElementById("invRole").value;
+    if(!name || !email){ msg.className="err"; msg.textContent="Name and email are required."; return; }
+    msg.className="ok"; msg.textContent="";
+    try{
+      await api("/api/users", { method:"POST", body: JSON.stringify({ name: name, email: email, role: role }) });
+      document.getElementById("invName").value=""; document.getElementById("invEmail").value="";
+      msg.textContent = "Invited - starter password homeland123";
+      await loadUsers(); if(!document.getElementById("view-users").classList.contains("hidden")) await loadUsersTab();
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
+
+  function maybeShowWhatsNew(){
+    if(localStorage.getItem("taskpad-whatsnew-p8")==="dismissed") return;
+    document.getElementById("whatsNew").classList.remove("hidden");
+  }
+  function dismissWhatsNew(){
+    localStorage.setItem("taskpad-whatsnew-p8", "dismissed");
+    document.getElementById("whatsNew").classList.add("hidden");
+  }
+
+  initTheme();
   if (token()){
     api("/api/auth/me").then(function(u){ ROLE=u.role; MY_EMAIL=u.email||""; afterLogin(u.name, u.role); })
       .catch(function(){ clearToken(); showLogin(); });
