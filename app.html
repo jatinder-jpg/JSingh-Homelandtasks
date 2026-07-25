@@ -11,6 +11,7 @@
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  a{color:var(--blue)}
   .wrap{max-width:960px;margin:0 auto;padding:20px}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
   h1{font-size:22px;letter-spacing:.14em;margin:0}
@@ -46,6 +47,8 @@
   .badge{position:absolute;top:-7px;right:-7px;background:var(--red);color:#fff;border-radius:999px;font-size:10px;padding:1px 6px}
   .note{background:#1d2748;border:1px solid var(--border);border-left:4px solid var(--amber);border-radius:8px;padding:10px 12px;margin-bottom:8px}
   .big{font-size:28px;font-weight:700;letter-spacing:.02em}
+  .msg{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px}
+  .msg .who{font-size:11px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -82,6 +85,8 @@
       <button id="nav-tasks" class="active" onclick="showTab('tasks')">Tasks</button>
       <button id="nav-meetings" onclick="showTab('meetings')">Meetings</button>
       <button id="nav-announcements" onclick="showTab('announcements')">Announcements</button>
+      <button id="nav-messages" onclick="showTab('messages')">Messages</button>
+      <button id="nav-documents" onclick="showTab('documents')">Documents</button>
       <button id="nav-notes" onclick="showTab('notes')">Notes</button>
       <button id="nav-attendance" onclick="showTab('attendance')">Attendance</button>
       <button id="nav-timesheet" onclick="showTab('timesheet')">Timesheet</button>
@@ -163,6 +168,40 @@
         <div class="between"><h2 style="margin:0">Announcements</h2>
           <button class="ghost" onclick="loadAnnouncements()">Refresh</button></div>
         <div id="annList"></div>
+      </div>
+    </div>
+
+    <div id="view-messages" class="hidden">
+      <div class="card">
+        <div class="row" style="margin-bottom:10px">
+          <button id="ch-GENERAL" onclick="setChannel('GENERAL')">Discussion</button>
+          <button id="ch-OFFICIAL" class="ghost" onclick="setChannel('OFFICIAL')">Official channel</button>
+          <button class="ghost" onclick="loadMessages()" style="margin-left:auto">Refresh</button>
+        </div>
+        <div id="msgList" style="max-height:360px;overflow:auto;margin-bottom:10px"></div>
+        <div class="row">
+          <input id="msgText" placeholder="Write a message..." style="flex:1">
+          <button onclick="sendMessage()">Send</button>
+        </div>
+        <p id="msgMsg"></p>
+      </div>
+    </div>
+
+    <div id="view-documents" class="hidden">
+      <div class="card">
+        <h2>Add document link</h2>
+        <div class="row">
+          <div style="flex:1"><label>Name</label><input id="docName" style="width:100%" placeholder="Q3 Report"></div>
+          <div style="flex:2"><label>URL</label><input id="docUrl" style="width:100%" placeholder="https://drive.google.com/..."></div>
+          <button onclick="addDocument()">Add</button>
+        </div>
+        <p class="muted" style="font-size:12px">Stores a name and link (binary file upload comes with cloud storage in a later phase).</p>
+        <p id="docMsg"></p>
+      </div>
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Documents</h2>
+          <button class="ghost" onclick="loadDocuments()">Refresh</button></div>
+        <div id="docList"></div>
       </div>
     </div>
 
@@ -249,7 +288,7 @@
     </div>
 
     <p class="muted" style="font-size:12px;text-align:center">
-      All data is stored on the live server and shared across everyone who signs in. Phase 3 - tasks, meetings, announcements, notes, attendance, timesheet, leaves, notifications.
+      All data is stored on the live server and shared across everyone who signs in. Phase 4 - tasks, meetings, announcements, messages, documents, notes, attendance, timesheet, leaves, notifications.
     </p>
   </div>
 </div>
@@ -259,6 +298,7 @@
   const TOKEN_KEY = "homeland_token";
   const STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
   let ROLE = "";
+  let currentChannel = "GENERAL";
 
   function token(){ return localStorage.getItem(TOKEN_KEY); }
   function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
@@ -289,7 +329,7 @@
     document.getElementById("app").classList.remove("hidden");
   }
 
-  const TABS = ["tasks","meetings","announcements","notes","attendance","timesheet","leaves","notifications"];
+  const TABS = ["tasks","meetings","announcements","messages","documents","notes","attendance","timesheet","leaves","notifications"];
   function showTab(name){
     TABS.forEach(function(t){
       document.getElementById("view-"+t).classList.toggle("hidden", t!==name);
@@ -298,6 +338,8 @@
     if(name==="tasks"){ loadProjects(); loadTasks(); }
     if(name==="meetings") loadMeetings();
     if(name==="announcements") loadAnnouncements();
+    if(name==="messages") loadMessages();
+    if(name==="documents") loadDocuments();
     if(name==="notes") loadNotes();
     if(name==="attendance") loadAttendance();
     if(name==="timesheet") loadTimesheet();
@@ -457,6 +499,55 @@
       return '<div class="item"><b>'+esc(a.title)+'</b><br><span class="muted">'+esc(a.message||"")+'</span>'+
         (a.createdByEmail? '<br><span class="muted" style="font-size:11px">by '+esc(a.createdByEmail)+'</span>':'')+'</div>';
     }).join("") || '<div class="muted">No announcements yet.</div>';
+  }
+
+  function setChannel(ch){
+    currentChannel = ch;
+    document.getElementById("ch-GENERAL").className = ch==="GENERAL" ? "" : "ghost";
+    document.getElementById("ch-OFFICIAL").className = ch==="OFFICIAL" ? "" : "ghost";
+    loadMessages();
+  }
+  async function loadMessages(){
+    const list = await api("/api/messages/"+currentChannel);
+    const box = document.getElementById("msgList");
+    box.innerHTML = list.map(function(m){
+      return '<div class="msg"><div class="who">'+esc(m.userEmail||"")+'</div>'+esc(m.text||"")+'</div>';
+    }).join("") || '<div class="muted">No messages yet.</div>';
+    box.scrollTop = box.scrollHeight;
+  }
+  async function sendMessage(){
+    const msg = document.getElementById("msgMsg");
+    const text = document.getElementById("msgText").value.trim();
+    if(!text) return;
+    msg.className="ok"; msg.textContent="";
+    try{
+      await api("/api/messages/"+currentChannel, { method:"POST", body: JSON.stringify({ text: text }) });
+      document.getElementById("msgText").value=""; await loadMessages();
+    }catch(e){ msg.className="err"; msg.textContent=e.message; }
+  }
+
+  async function addDocument(){
+    const msg = document.getElementById("docMsg");
+    const name = document.getElementById("docName").value.trim();
+    const url = document.getElementById("docUrl").value.trim();
+    if(!name || !url){ msg.className="err"; msg.textContent="Name and URL required."; return; }
+    msg.className="ok"; msg.textContent="";
+    try{
+      await api("/api/documents", { method:"POST", body: JSON.stringify({ name: name, url: url }) });
+      document.getElementById("docName").value=""; document.getElementById("docUrl").value="";
+      msg.textContent="Saved"; await loadDocuments();
+    }catch(e){ msg.className="err"; msg.textContent=e.message; }
+  }
+  async function loadDocuments(){
+    const list = await api("/api/documents");
+    document.getElementById("docList").innerHTML = list.map(function(d){
+      return '<div class="item between"><a href="'+esc(d.url)+'" target="_blank" rel="noopener">'+esc(d.name)+'</a>'+
+        '<button class="ghost" onclick="deleteDocument('+d.id+')">Delete</button></div>';
+    }).join("") || '<div class="muted">No documents yet.</div>';
+  }
+  async function deleteDocument(id){
+    try{ await api("/api/documents/"+id, { method:"DELETE" }); await loadDocuments(); }
+    catch(e){ alert(e.message); }
   }
 
   async function addNote(){
