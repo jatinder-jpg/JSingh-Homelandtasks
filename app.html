@@ -36,23 +36,58 @@
   .ok{color:var(--green);font-size:13px;margin:6px 0 0}
   .muted{color:var(--muted)}
   .hidden{display:none}
-  .brand{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--blue),var(--amber));display:inline-block;vertical-align:middle;margin-right:8px}
+  .brand{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--blue),var(--amber));display:inline-block;vertical-align:middle;margin-right:8px;flex-shrink:0}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:640px){.grid{grid-template-columns:1fr}}
   .tag{font-size:11px;color:var(--green);border:1px solid var(--green);border-radius:999px;padding:2px 8px}
-  .nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
-  .nav button{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:500}
-  .nav button.active{background:var(--blue);color:#1a1205;border-color:var(--blue);font-weight:600}
   .bell{position:relative;cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:#0b1220}
   .badge{position:absolute;top:-7px;right:-7px;background:var(--red);color:#fff;border-radius:999px;font-size:10px;padding:1px 6px}
   .note{background:#1d2748;border:1px solid var(--border);border-left:4px solid var(--amber);border-radius:8px;padding:10px 12px;margin-bottom:8px}
   .big{font-size:28px;font-weight:700;letter-spacing:.02em}
   .msg{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px}
   .msg .who{font-size:11px;color:var(--muted)}
+
+  /* ---- Sidebar layout (Taskopad-style) ---- */
+  .layout{display:flex;align-items:flex-start}
+  .sidebar{width:224px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);
+    padding:18px 12px;position:fixed;top:0;bottom:0;left:0;overflow-y:auto}
+  .sidebar .brandrow{display:flex;align-items:center;gap:2px;padding:0 8px 18px}
+  .sidebar .brandrow b{font-size:13px;letter-spacing:.1em}
+  .sidenav{display:flex;flex-direction:column;gap:2px}
+  .sidenav button{background:transparent;border:none;color:var(--muted);text-align:left;
+    padding:10px 12px;border-radius:8px;font-weight:500;display:flex;align-items:center;
+    gap:10px;width:100%;justify-content:flex-start}
+  .sidenav button:hover{background:#1d2748}
+  .sidenav button.active{background:var(--blue);color:#1a1205;font-weight:600}
+  .sidenav .badge-count{margin-left:auto;background:var(--red);color:#fff;font-size:10px;
+    border-radius:999px;padding:1px 6px}
+  .sidefoot{margin-top:18px;border-top:1px solid var(--border);padding-top:12px}
+  .main{margin-left:224px;flex:1;padding:20px 24px;max-width:1040px;min-width:0}
+  .topbar{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .search{flex:1;max-width:360px}
+  .search input{width:100%}
+  @media(max-width:860px){
+    .sidebar{position:static;width:100%;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+    .main{margin-left:0;max-width:100%;padding:16px}
+    .sidenav{flex-direction:row;flex-wrap:wrap}
+  }
+
+  /* ---- Task table (Taskopad-style list view) ---- */
+  .filterbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .filterbar button{background:transparent;border:1px solid var(--border);color:var(--muted);
+    font-weight:500;padding:6px 12px;font-size:13px}
+  .filterbar button.active{background:var(--blue);color:#1a1205;border-color:var(--blue);font-weight:600}
+  .tbl-wrap{overflow-x:auto}
+  .tbl{width:100%;border-collapse:collapse;min-width:560px}
+  .tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+  .tbl td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle}
+  .tbl tbody tr:hover td{background:#1a2440}
+  .tbl select{padding:6px 8px;font-size:13px}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" style="max-width:none;padding:0">
 
   <div id="loginCard" class="card" style="max-width:420px;margin:8vh auto">
     <div style="text-align:center">
@@ -70,30 +105,36 @@
   </div>
 
   <div id="app" class="hidden">
-    <div class="card between">
-      <div><span class="brand"></span><b style="letter-spacing:.14em">HOMELAND TASKS</b>
-        <span class="tag">LIVE - connected</span></div>
-      <div class="row" style="align-items:center">
-        <div class="bell" onclick="showTab('notifications')" title="Notifications">&#128276;
-          <span id="bell" class="badge hidden">0</span></div>
-        <span id="who" class="muted"></span>
-        <button class="ghost" onclick="logout()">Sign out</button>
+   <div class="layout">
+    <div class="sidebar">
+      <div class="brandrow"><span class="brand"></span><b>HOMELAND<br>TASKS</b></div>
+      <div class="sidenav">
+        <button id="nav-tasks" class="active" onclick="showTab('tasks')">Tasks</button>
+        <button id="nav-meetings" onclick="showTab('meetings')">Meetings</button>
+        <button id="nav-announcements" onclick="showTab('announcements')">Announcements</button>
+        <button id="nav-messages" onclick="showTab('messages')">Messages</button>
+        <button id="nav-documents" onclick="showTab('documents')">Documents</button>
+        <button id="nav-notes" onclick="showTab('notes')">Notes</button>
+        <button id="nav-attendance" onclick="showTab('attendance')">Attendance</button>
+        <button id="nav-timesheet" onclick="showTab('timesheet')">Timesheet</button>
+        <button id="nav-leaves" onclick="showTab('leaves')">Leaves</button>
+        <button id="nav-reports" onclick="showTab('reports')">Reports</button>
+        <button id="nav-notifications" onclick="showTab('notifications')">Notifications
+          <span id="bell2" class="badge-count hidden">0</span></button>
+      </div>
+      <div class="sidefoot">
+        <span id="who" class="muted" style="display:block;font-size:12px;margin-bottom:8px"></span>
+        <button class="ghost" style="width:100%" onclick="logout()">Sign out</button>
       </div>
     </div>
 
-    <div class="nav">
-      <button id="nav-tasks" class="active" onclick="showTab('tasks')">Tasks</button>
-      <button id="nav-meetings" onclick="showTab('meetings')">Meetings</button>
-      <button id="nav-announcements" onclick="showTab('announcements')">Announcements</button>
-      <button id="nav-messages" onclick="showTab('messages')">Messages</button>
-      <button id="nav-documents" onclick="showTab('documents')">Documents</button>
-      <button id="nav-notes" onclick="showTab('notes')">Notes</button>
-      <button id="nav-attendance" onclick="showTab('attendance')">Attendance</button>
-      <button id="nav-timesheet" onclick="showTab('timesheet')">Timesheet</button>
-      <button id="nav-leaves" onclick="showTab('leaves')">Leaves</button>
-      <button id="nav-reports" onclick="showTab('reports')">Reports</button>
-      <button id="nav-notifications" onclick="showTab('notifications')">Notifications</button>
-    </div>
+    <div class="main">
+      <div class="topbar">
+        <div class="search"><input id="taskSearch" placeholder="Search tasks..." style="width:100%" oninput="renderTaskTable()"></div>
+        <span class="tag">LIVE - connected</span>
+        <div class="bell" onclick="showTab('notifications')" title="Notifications">&#128276;
+          <span id="bell" class="badge hidden">0</span></div>
+      </div>
 
     <div id="view-tasks">
       <div class="grid">
@@ -123,8 +164,19 @@
       <div class="card">
         <div class="between"><h2 style="margin:0">Tasks</h2>
           <button class="ghost" onclick="loadTasks()">Refresh</button></div>
-        <div id="summary" class="muted" style="margin:8px 0 12px"></div>
-        <div id="taskList"></div>
+        <div class="filterbar">
+          <button id="flt-ALL" class="active" onclick="setTaskFilter('ALL')">All</button>
+          <button id="flt-TODO" onclick="setTaskFilter('TODO')">To do</button>
+          <button id="flt-IN_PROGRESS" onclick="setTaskFilter('IN_PROGRESS')">In progress</button>
+          <button id="flt-DONE" onclick="setTaskFilter('DONE')">Done</button>
+        </div>
+        <div id="summary" class="muted" style="margin:0 0 12px"></div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Task</th><th>Project</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+            <tbody id="taskList"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -282,7 +334,8 @@
 
     <div id="view-reports" class="hidden">
       <div class="card">
-        <div class="between"><h2 style="margin:0">Overview</h2><button class="ghost" onclick="loadReports()">Refresh</button></div>
+        <div class="between"><h2 style="margin:0">Overview</h2>
+          <button class="ghost" onclick="loadReports()">Refresh</button></div>
         <div id="repStats"></div>
       </div>
       <div class="card">
@@ -300,8 +353,10 @@
     </div>
 
     <p class="muted" style="font-size:12px;text-align:center">
-      All data is stored on the live server and shared across everyone who signs in. Phase 4 - tasks, meetings, announcements, messages, documents, notes, attendance, timesheet, leaves, notifications.
+      All data is stored on the live server and shared across everyone who signs in.
     </p>
+    </div>
+   </div>
   </div>
 </div>
 
@@ -311,6 +366,8 @@
   const STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
   let ROLE = "";
   let currentChannel = "GENERAL";
+  let allTasks = [];
+  let taskFilter = "ALL";
 
   function token(){ return localStorage.getItem(TOKEN_KEY); }
   function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
@@ -426,24 +483,42 @@
     }catch(e){ msg.className="err"; msg.textContent = e.message; }
   }
   async function loadTasks(){
-    const tasks = await api("/api/tasks");
+    allTasks = await api("/api/tasks");
+    renderTaskTable();
+  }
+  function setTaskFilter(f){
+    taskFilter = f;
+    ["ALL","TODO","IN_PROGRESS","DONE"].forEach(function(s){
+      document.getElementById("flt-"+s).classList.toggle("active", s===f);
+    });
+    renderTaskTable();
+  }
+  function renderTaskTable(){
+    const q = (document.getElementById("taskSearch").value || "").toLowerCase();
+    const tasks = allTasks.filter(function(t){
+      if(taskFilter!=="ALL" && t.status!==taskFilter) return false;
+      const title = (t.title||"").toLowerCase();
+      const proj = (t.project && t.project.name ? t.project.name : "").toLowerCase();
+      if(q && title.indexOf(q)===-1 && proj.indexOf(q)===-1) return false;
+      return true;
+    });
     const counts = { HIGH:0, MEDIUM:0, LOW:0 };
-    tasks.forEach(function(t){ if(counts[t.priority]!==undefined) counts[t.priority]++; });
+    allTasks.forEach(function(t){ if(counts[t.priority]!==undefined) counts[t.priority]++; });
     document.getElementById("summary").innerHTML =
       '<span class="pill HIGH">High '+counts.HIGH+'</span> '+
       '<span class="pill MEDIUM">Medium '+counts.MEDIUM+'</span> '+
-      '<span class="pill LOW">Low '+counts.LOW+'</span> - total '+tasks.length;
+      '<span class="pill LOW">Low '+counts.LOW+'</span> - total '+allTasks.length;
     document.getElementById("taskList").innerHTML = tasks.map(function(t){
-      return '<div class="item between">'+
-        '<div><b>'+esc(t.title)+'</b><br><span class="muted">'+(t.project?esc(t.project.name):'')+'</span></div>'+
-        '<div class="row" style="align-items:center">'+
-          '<span class="pill '+t.priority+'">'+t.priority+'</span>'+
-          '<select onchange="changeStatus('+t.id+', this.value)">'+
-            STATUSES.map(function(s){ return '<option '+(t.status===s?'selected':'')+'>'+s+'</option>'; }).join("")+
-          '</select>'+
-          '<button class="ghost" onclick="removeTask('+t.id+')">Delete</button>'+
-        '</div></div>';
-    }).join("") || '<div class="muted">No tasks yet.</div>';
+      return '<tr>'+
+        '<td><b>'+esc(t.title)+'</b></td>'+
+        '<td class="muted">'+(t.project?esc(t.project.name):'')+'</td>'+
+        '<td><span class="pill '+t.priority+'">'+t.priority+'</span></td>'+
+        '<td><select onchange="changeStatus('+t.id+', this.value)">'+
+          STATUSES.map(function(s){ return '<option '+(t.status===s?'selected':'')+'>'+s+'</option>'; }).join("")+
+        '</select></td>'+
+        '<td style="text-align:right"><button class="ghost" onclick="removeTask('+t.id+')">Delete</button></td>'+
+      '</tr>';
+    }).join("") || '<tr><td colspan="5" class="muted">No tasks match.</td></tr>';
   }
   async function changeStatus(id, status){
     try{ await api("/api/tasks/"+id+"/status", { method:"PATCH", body: JSON.stringify({ status: status }) }); await loadTasks(); }
@@ -691,9 +766,11 @@
   async function refreshBell(){
     try{
       const r = await api("/api/notifications/unread-count");
-      const b = document.getElementById("bell");
       const n = r && r.count ? r.count : 0;
+      const b = document.getElementById("bell");
       b.textContent = n; b.classList.toggle("hidden", n===0);
+      const b2 = document.getElementById("bell2");
+      b2.textContent = n; b2.classList.toggle("hidden", n===0);
     }catch(e){}
   }
 
