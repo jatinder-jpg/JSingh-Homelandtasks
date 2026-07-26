@@ -134,9 +134,11 @@
     --blue:#b9832c; --green:#1f9d5b; --amber:#c98108; --red:#d13c47; --shadow:0 1px 4px rgba(0,0,0,.08);
   }
   body[data-theme="light"] input,body[data-theme="light"] select,
-  body[data-theme="light"] textarea{background:#fff} body[data-theme="light"] button.ghost{background:transparent}
+  body[data-theme="light"] textarea{background:#fff}
+  body[data-theme="light"] button.ghost{background:transparent}
   body[data-theme="light"] .kcol{background:#eceae0}
-  body[data-theme="light"] .sidenav button{color:var(--muted)} body[data-theme="light"] .sidenav button.active{color:#1a1205}
+  body[data-theme="light"] .sidenav button{color:var(--muted)}
+  body[data-theme="light"] .sidenav button.active{color:#1a1205}
   body[data-theme="light"] .kcard button.ghost,body[data-theme="light"] button.ghost{color:var(--muted)}
 
   /* ---- What's New banner ---- */
@@ -509,6 +511,17 @@
     </div>
 
     <div id="view-users" class="hidden">
+      <div id="inviteCard" class="card hidden">
+        <h2>Add user (admin)</h2>
+        <div class="row">
+          <div style="flex:1"><label>Name</label><input id="invName" style="width:100%" placeholder="Full name"></div>
+          <div style="flex:1"><label>Email</label><input id="invEmail" style="width:100%" placeholder="name@homelandgroup.org"></div>
+          <div><label>Role</label><select id="invRole"><option value="MEMBER">Member</option><option value="ADMIN">Admin</option></select></div>
+        </div>
+        <button style="margin-top:12px" onclick="inviteTeammate()">Add user</button>
+        <p class="muted" style="font-size:12px">Starter password is <code>homeland123</code> - they should change it after first sign-in.</p>
+        <p id="invMsg"></p>
+      </div>
       <div class="card">
         <div class="between"><h2 style="margin:0">Team</h2>
           <button class="ghost" onclick="loadUsersTab()">Refresh</button></div>
@@ -541,17 +554,6 @@
           <button id="theme-dark" onclick="setTheme('dark')">Dark</button>
           <button id="theme-light" class="ghost" onclick="setTheme('light')">Light</button>
         </div>
-      </div>
-      <div id="inviteCard" class="card hidden">
-        <h2>Invite a teammate (admin)</h2>
-        <div class="row">
-          <div style="flex:1"><label>Name</label><input id="invName" style="width:100%" placeholder="Full name"></div>
-          <div style="flex:1"><label>Email</label><input id="invEmail" style="width:100%" placeholder="name@homelandgroup.org"></div>
-          <div><label>Role</label><select id="invRole"><option value="MEMBER">Member</option><option value="ADMIN">Admin</option></select></div>
-        </div>
-        <button style="margin-top:12px" onclick="inviteTeammate()">Send invite</button>
-        <p class="muted" style="font-size:12px">Starter password is <code>homeland123</code> - they should change it after first sign-in.</p>
-        <p id="invMsg"></p>
       </div>
       <div class="card">
         <h2>About</h2>
@@ -728,15 +730,34 @@
     }).join("");
     sel.value = keep;
   }
+  const SUPER_ADMIN_EMAIL = "jatinder@homelandgroup.org";
+  function roleLabel(u){
+    if (u.email && u.email.toLowerCase() === SUPER_ADMIN_EMAIL) return "SUPER ADMIN";
+    return u.role;
+  }
   async function loadUsersTab(){
     if(!allUsers.length) await loadUsers();
+    const canManage = ROLE === "ADMIN";
     document.getElementById("usersList").innerHTML = allUsers.map(function(u){
       const initials = u.avatarInitials || initialsOf(u.name);
+      const isSuperAdmin = u.email && u.email.toLowerCase() === SUPER_ADMIN_EMAIL;
+      const isSelf = u.email && MY_EMAIL && u.email.toLowerCase() === MY_EMAIL.toLowerCase();
+      const canDelete = canManage && !isSuperAdmin && !isSelf;
       return '<div class="item between"><div class="row" style="align-items:center;gap:10px">'+
         '<span class="avatar" style="width:34px;height:34px;font-size:13px">'+esc(initials)+'</span>'+
         '<div><b>'+esc(u.name)+'</b><br><span class="muted" style="font-size:12px">'+esc(u.email)+'</span></div>'+
-        '</div><span class="pill '+(u.role==="ADMIN"?"HIGH":"LOW")+'">'+esc(u.role)+'</span></div>';
+        '</div><div class="row" style="align-items:center;gap:8px">'+
+        '<span class="pill '+(u.role==="ADMIN"?"HIGH":"LOW")+'">'+esc(roleLabel(u))+'</span>'+
+        (canDelete ? '<button class="ghost" style="color:var(--red);border-color:var(--red)" onclick="deleteUser('+u.id+',\''+esc(u.name).replace(/'/g,"\\'")+'\')">Delete</button>' : '')+
+        '</div></div>';
     }).join("") || '<div class="muted">No users yet.</div>';
+  }
+  async function deleteUser(id, name){
+    if(!confirm('Remove '+name+' from the team? This cannot be undone.')) return;
+    try{
+      await api("/api/users/"+id, { method:"DELETE" });
+      await loadUsers(); await loadUsersTab();
+    }catch(e){ alert(e.message); }
   }
   async function addProject(){
     const msg = document.getElementById("projMsg");
