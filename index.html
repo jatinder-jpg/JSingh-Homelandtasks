@@ -312,7 +312,7 @@
           <div style="flex:1">
             <div id="dashWelcomeMsg" style="font-weight:600;margin-bottom:4px"></div>
             <div class="muted" style="font-size:13px;margin-bottom:10px" id="dashWelcomeSub"></div>
-            <button onclick="showTab('tasks')">+ Add Task</button>
+            <button onclick="showTab('tasks'); openNewTaskModal()">+ Add Task</button>
           </div>
           <div class="emoji" aria-hidden="true">&#128221;</div>
         </div>
@@ -368,43 +368,8 @@
       </div>
       <div class="statgrid" id="statCards"></div>
 
-      <div class="grid" style="grid-template-columns:1fr">
-        <div class="card">
-          <h2>New task</h2>
-          <div id="taskDraftBanner" class="hidden" style="background:var(--panel);border:1px solid var(--border);
-            border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:13px;display:flex;align-items:center;gap:8px">
-            <span style="flex:1">You have an unsaved draft.</span>
-            <button class="ghost" style="padding:4px 8px" onclick="resumeTaskDraft()">Resume</button>
-            <button class="ghost" style="padding:4px 8px" onclick="discardTaskDraft()">Discard</button>
-          </div>
-          <label>Title</label>
-          <input id="taskTitle" placeholder="e.g. Site visit - Sector 22" style="width:100%" oninput="saveTaskDraft()">
-          <label>Site visit required?</label>
-          <select id="taskSiteVisit" style="width:100%" onchange="saveTaskDraft()">
-            <option value="no" selected>No</option>
-            <option value="yes">Yes</option>
-          </select>
-          <label>Description</label>
-          <textarea id="taskDesc" placeholder="Optional details..." style="min-height:44px" oninput="saveTaskDraft()"></textarea>
-          <div class="row" style="margin-top:8px">
-            <div style="flex:1"><label>Project <span style="color:var(--red)">*</span> (required)</label><select id="taskProject" style="width:100%" onchange="saveTaskDraft()" required></select></div>
-            <div><label>Priority</label>
-              <select id="taskPriority" onchange="saveTaskDraft()"><option>HIGH</option><option selected>MEDIUM</option><option>LOW</option></select>
-            </div>
-          </div>
-          <div class="row" style="margin-top:8px">
-            <div><label>Due date</label><input id="taskDue" type="date" onchange="saveTaskDraft()"></div>
-            <div style="flex:1"><label>Assignee</label><select id="taskAssignee" style="width:100%" onchange="saveTaskDraft()"><option value="">Unassigned</option></select></div>
-            <div><label>Repeat</label>
-              <select id="taskRepeat" onchange="saveTaskDraft()"><option value="NONE">None</option><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option></select>
-            </div>
-          </div>
-          <label>Or assign to a department/group (optional)</label>
-          <input id="taskDepartment" placeholder="e.g. Structural Engineering" style="width:100%" oninput="saveTaskDraft()">
-          <p class="muted" style="font-size:11px;margin-top:2px">Everyone can already see every task. Setting a group here just labels who it's for - use Reassign process afterwards to pick a specific point of contact.</p>
-          <button style="margin-top:12px" onclick="addTask()">Add task</button>
-          <p id="taskMsg"></p>
-        </div>
+      <div style="margin-bottom:16px">
+        <button onclick="openNewTaskModal()">+ Add new task</button>
       </div>
 
       <div id="dashboardAnnouncementBanner" class="card hidden" style="border-color:var(--blue)"></div>
@@ -861,6 +826,48 @@
   </div>
 </div>
 
+<div id="newTaskModal" class="modal-overlay hidden" onclick="if(event.target===this) closeNewTaskModal()">
+  <div class="modal-box">
+    <div class="between">
+      <h2 style="margin:0">Add new task</h2>
+      <button class="ghost" onclick="closeNewTaskModal()">Close</button>
+    </div>
+    <div id="taskDraftBanner" class="hidden" style="background:var(--bg);border:1px solid var(--border);
+      border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:13px;display:flex;align-items:center;gap:8px">
+      <span style="flex:1">You have an unsaved draft.</span>
+      <button class="ghost" style="padding:4px 8px" onclick="resumeTaskDraft()">Resume</button>
+      <button class="ghost" style="padding:4px 8px" onclick="discardTaskDraft()">Discard</button>
+    </div>
+    <label>Title</label>
+    <input id="taskTitle" placeholder="e.g. Site visit - Sector 22" style="width:100%" oninput="saveTaskDraft()">
+    <label>Site visit required?</label>
+    <select id="taskSiteVisit" style="width:100%" onchange="saveTaskDraft()">
+      <option value="no" selected>No</option>
+      <option value="yes">Yes</option>
+    </select>
+    <label>Description</label>
+    <textarea id="taskDesc" placeholder="Optional details..." style="min-height:44px" oninput="saveTaskDraft()"></textarea>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1"><label>Project <span style="color:var(--red)">*</span> (required)</label><select id="taskProject" style="width:100%" onchange="saveTaskDraft()" required></select></div>
+      <div><label>Priority</label>
+        <select id="taskPriority" onchange="saveTaskDraft()"><option>HIGH</option><option selected>MEDIUM</option><option>LOW</option></select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><label>Due date</label><input id="taskDue" type="date" onchange="saveTaskDraft()"></div>
+      <div style="flex:1"><label>Assignee</label><select id="taskAssignee" style="width:100%" onchange="saveTaskDraft()"><option value="">Unassigned</option></select></div>
+      <div><label>Repeat</label>
+        <select id="taskRepeat" onchange="saveTaskDraft()"><option value="NONE">None</option><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option></select>
+      </div>
+    </div>
+    <label>Or assign to a department/group (optional)</label>
+    <input id="taskDepartment" placeholder="e.g. Structural Engineering" style="width:100%" oninput="saveTaskDraft()">
+    <p class="muted" style="font-size:11px;margin-top:2px">Everyone can already see every task. Setting a group here just labels who it's for - use Reassign process afterwards to pick a specific point of contact.</p>
+    <button style="margin-top:12px" onclick="addTask()">Add task</button>
+    <p id="taskMsg"></p>
+  </div>
+</div>
+
 <div id="reminderModal" class="modal-overlay hidden" onclick="if(event.target===this) hideReminderModal()">
   <div class="modal-box" style="max-width:440px">
     <div class="between">
@@ -1224,6 +1231,14 @@
       msg.textContent = "Saved"; await loadProjects();
     }catch(e){ msg.className="err"; msg.textContent = e.message; }
   }
+  function openNewTaskModal(){
+    document.getElementById("newTaskModal").classList.remove("hidden");
+    checkTaskDraftBanner();
+    document.getElementById("taskTitle").focus();
+  }
+  function closeNewTaskModal(){
+    document.getElementById("newTaskModal").classList.add("hidden");
+  }
   async function addTask(){
     const msg = document.getElementById("taskMsg");
     const title = document.getElementById("taskTitle").value.trim();
@@ -1252,6 +1267,7 @@
       msg.textContent = "Saved (stored on the server)";
       discardTaskDraft();
       await loadTasks();
+      closeNewTaskModal();
     }catch(e){ msg.className="err"; msg.textContent = e.message; }
   }
 
@@ -1291,6 +1307,8 @@
   function resumeTaskDraft(){
     const raw = localStorage.getItem(TASK_DRAFT_KEY);
     if(!raw) return;
+    const modal = document.getElementById("newTaskModal");
+    if(modal) modal.classList.remove("hidden");
     try{
       const d = JSON.parse(raw);
       document.getElementById("taskTitle").value = d.title || "";
