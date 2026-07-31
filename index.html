@@ -10,7 +10,10 @@
     --blue:#c9a250; --green:#34c274; --amber:#f2a516; --red:#f0616a; --shadow:0 1px 4px rgba(0,0,0,.35);
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  html,body{height:100%}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  .wrap{min-height:100vh}
+  .layout{min-height:100vh}
   a{color:var(--blue)}
   .wrap{max-width:960px;margin:0 auto;padding:20px}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
@@ -63,7 +66,7 @@
   .sidenav .badge-count{margin-left:auto;background:var(--red);color:#fff;font-size:10px;
     border-radius:999px;padding:1px 6px}
   .sidefoot{margin-top:18px;border-top:1px solid var(--border);padding-top:12px}
-  .main{margin-left:224px;flex:1;padding:20px 24px;max-width:1040px;min-width:0}
+  .main{margin-left:224px;flex:1;padding:20px 24px;min-width:0}
   .topbar{display:flex;align-items:center;gap:12px;margin-bottom:18px}
   .search{flex:1;max-width:360px}
   .search input{width:100%}
@@ -208,6 +211,7 @@
         <button id="nav-meetings" onclick="showTab('meetings')">Meetings</button>
         <button id="nav-announcements" onclick="showTab('announcements')">Announcements</button>
         <button id="nav-messages" onclick="showTab('messages')">Discussion</button>
+        <button id="nav-broadcast" onclick="showTab('broadcast')" class="hidden">Admin chat</button>
         <button id="nav-documents" onclick="showTab('documents')">Documents</button>
         <button id="nav-notes" onclick="showTab('notes')">Notes</button>
         <button id="nav-widgets" onclick="showTab('widgets')">Widgets</button>
@@ -265,32 +269,59 @@
         </div>
         <div class="card">
           <h2>New task</h2>
+          <div id="taskDraftBanner" class="hidden" style="background:var(--panel);border:1px solid var(--border);
+            border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:13px;display:flex;align-items:center;gap:8px">
+            <span style="flex:1">You have an unsaved draft.</span>
+            <button class="ghost" style="padding:4px 8px" onclick="resumeTaskDraft()">Resume</button>
+            <button class="ghost" style="padding:4px 8px" onclick="discardTaskDraft()">Discard</button>
+          </div>
           <label>Title</label>
-          <input id="taskTitle" placeholder="e.g. Site visit - Sector 22" style="width:100%">
+          <input id="taskTitle" placeholder="e.g. Site visit - Sector 22" style="width:100%" oninput="saveTaskDraft()">
+          <label>Site visit required?</label>
+          <select id="taskSiteVisit" style="width:100%" onchange="saveTaskDraft()">
+            <option value="no" selected>No</option>
+            <option value="yes">Yes</option>
+          </select>
           <label>Description</label>
-          <textarea id="taskDesc" placeholder="Optional details..." style="min-height:44px"></textarea>
+          <textarea id="taskDesc" placeholder="Optional details..." style="min-height:44px" oninput="saveTaskDraft()"></textarea>
           <div class="row" style="margin-top:8px">
-            <div style="flex:1"><label>Project</label><select id="taskProject" style="width:100%"></select></div>
+            <div style="flex:1"><label>Project <span style="color:var(--red)">*</span> (required)</label><select id="taskProject" style="width:100%" onchange="saveTaskDraft()" required></select></div>
             <div><label>Priority</label>
-              <select id="taskPriority"><option>HIGH</option><option selected>MEDIUM</option><option>LOW</option></select>
+              <select id="taskPriority" onchange="saveTaskDraft()"><option>HIGH</option><option selected>MEDIUM</option><option>LOW</option></select>
             </div>
           </div>
           <div class="row" style="margin-top:8px">
-            <div><label>Due date</label><input id="taskDue" type="date"></div>
-            <div style="flex:1"><label>Assignee</label><select id="taskAssignee" style="width:100%"><option value="">Unassigned</option></select></div>
+            <div><label>Due date</label><input id="taskDue" type="date" onchange="saveTaskDraft()"></div>
+            <div style="flex:1"><label>Assignee</label><select id="taskAssignee" style="width:100%" onchange="saveTaskDraft()"><option value="">Unassigned</option></select></div>
             <div><label>Repeat</label>
-              <select id="taskRepeat"><option value="NONE">None</option><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option></select>
+              <select id="taskRepeat" onchange="saveTaskDraft()"><option value="NONE">None</option><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option></select>
             </div>
           </div>
-          <label style="display:flex;align-items:center;gap:6px;margin-top:10px">
-            <input id="taskSiteVisit" type="checkbox" style="width:auto;padding:0"> <span class="muted" style="margin:0">Site visit required</span>
-          </label>
+          <label>Or assign to a department/group (optional)</label>
+          <input id="taskDepartment" placeholder="e.g. Structural Engineering" style="width:100%" oninput="saveTaskDraft()">
+          <p class="muted" style="font-size:11px;margin-top:2px">Everyone can already see every task. Setting a group here just labels who it's for - use Reassign process afterwards to pick a specific point of contact.</p>
           <button style="margin-top:12px" onclick="addTask()">Add task</button>
           <p id="taskMsg"></p>
         </div>
       </div>
 
+      <div id="dashboardAnnouncementBanner" class="card hidden" style="border-color:var(--blue)"></div>
+
       <div class="card">
+        <div class="viewtabs">
+          <button id="dtab-recent" class="active" onclick="setDashboardTab('recent')">Recent tasks</button>
+          <button id="dtab-draft" onclick="setDashboardTab('draft')">Draft tasks</button>
+        </div>
+      </div>
+
+      <div id="dashboardDraftCard" class="card hidden">
+        <div class="between"><h2 style="margin:0">Draft tasks</h2>
+          <button class="ghost" onclick="renderDashboardDrafts()">Refresh</button></div>
+        <p class="muted" style="margin-top:0">Tasks you started but didn't submit. Automatically saved as you type in the New task form.</p>
+        <div id="dashboardDraftList"></div>
+      </div>
+
+      <div id="dashboardRecentCard" class="card">
         <div class="between"><h2 style="margin:0">Tasks</h2>
           <button class="ghost" onclick="loadTasks()">Refresh</button></div>
 
@@ -408,14 +439,44 @@
         <div class="row" style="margin-bottom:10px">
           <button id="ch-GENERAL" onclick="setChannel('GENERAL')">Discussion</button>
           <button id="ch-OFFICIAL" class="ghost" onclick="setChannel('OFFICIAL')">Official channel</button>
-          <button class="ghost" onclick="loadMessages()" style="margin-left:auto">Refresh</button>
+          <button id="msgArchiveToggle" class="ghost" onclick="toggleMessageArchiveView()" style="margin-left:auto">Archived</button>
+          <button class="ghost" onclick="loadMessages()">Refresh</button>
         </div>
         <div id="msgList" style="max-height:360px;overflow:auto;margin-bottom:10px"></div>
-        <div class="row">
-          <input id="msgText" placeholder="Write a message..." style="flex:1">
+        <div class="row" style="position:relative">
+          <div style="flex:1;position:relative">
+            <input id="msgText" placeholder="Write a message... (type @ to mention someone)" style="width:100%"
+              oninput="onMentionInput(event); saveMessageDraft();" onkeydown="onMentionKeydown(event)" onblur="setTimeout(hideMentionMenu, 150)">
+            <div id="mentionMenu" class="hidden" style="position:absolute;bottom:calc(100% + 4px);left:0;right:0;
+              background:var(--panel);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);
+              max-height:180px;overflow-y:auto;z-index:20"></div>
+          </div>
           <button onclick="sendMessage()">Send</button>
         </div>
         <p id="msgMsg"></p>
+      </div>
+    </div>
+
+    <div id="view-broadcast" class="hidden">
+      <div id="broadcastMembersCard" class="card hidden">
+        <h2>Channel members (admin)</h2>
+        <p class="muted" style="margin-top:0">Admins can always read and post. Add employees here so they can read too - they can't reply.</p>
+        <div class="row">
+          <select id="broadcastAddMemberSelect" style="flex:1"></select>
+          <button onclick="addBroadcastMember()">Add</button>
+        </div>
+        <div id="broadcastMembersList" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <div class="between"><h2 style="margin:0">Admin chat</h2>
+          <button class="ghost" onclick="loadBroadcast()">Refresh</button></div>
+        <p class="muted" style="margin-top:0">A broadcast channel - only admins can post here. Everyone added can read.</p>
+        <div id="broadcastList" style="max-height:360px;overflow:auto;margin-bottom:10px"></div>
+        <div id="broadcastComposeRow" class="row hidden">
+          <input id="broadcastText" placeholder="Post an official update..." style="flex:1">
+          <button onclick="sendBroadcastMessage()">Send</button>
+        </div>
+        <p id="broadcastMsg"></p>
       </div>
     </div>
 
@@ -427,8 +488,16 @@
           <div style="flex:2"><label>URL</label><input id="docUrl" style="width:100%" placeholder="https://drive.google.com/..."></div>
           <button onclick="addDocument()">Add</button>
         </div>
-        <p class="muted" style="font-size:12px">Stores a name and link (binary file upload comes with cloud storage in a later phase).</p>
         <p id="docMsg"></p>
+      </div>
+      <div class="card">
+        <h2>Upload a file</h2>
+        <div class="row">
+          <div style="flex:1"><label>Name (optional)</label><input id="docUploadName" style="width:100%" placeholder="Defaults to the file name"></div>
+          <div><label>File (max 5MB)</label><input id="docFile" type="file"></div>
+          <button onclick="uploadDocument()">Upload</button>
+        </div>
+        <p id="docUploadMsg"></p>
       </div>
       <div class="card">
         <div class="between"><h2 style="margin:0">Documents</h2>
@@ -544,13 +613,54 @@
         <h2>Overdue alerts</h2>
         <div id="repAlerts"></div>
       </div>
+      <div id="activityReportCard" class="card hidden">
+        <div class="between"><h2 style="margin:0">User activity report</h2>
+          <div class="row">
+            <select id="activityRangeSelect" onchange="loadActivityReport()">
+              <option value="7">Last 7 days</option>
+              <option value="14" selected>Last 14 days</option>
+              <option value="30">Last 30 days</option>
+            </select>
+            <button class="ghost" onclick="loadActivityReport()">Refresh</button>
+          </div>
+        </div>
+        <p class="muted" style="margin-top:0;font-size:12px">Open time is how long TaskOPad sat open (foreground or background). Active time is time spent actually interacting with it. Reported separately per platform - only Web is instrumented today; a Mobile row will appear once the iOS/Android apps send heartbeats too.</p>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>User</th><th>Day</th><th>Platform</th><th>Open time</th><th>Active time</th></tr></thead>
+            <tbody id="activityReportBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <div id="view-escalation" class="hidden">
+      <div id="escMatrixConfigCard" class="card hidden">
+        <h2>Escalation levels (admin)</h2>
+        <p class="muted" style="margin-top:0">Define how many days overdue triggers each level, and who gets notified. A task stays at the highest level it has reached until it's completed.</p>
+        <div id="escLevelsList" style="margin-bottom:12px"></div>
+        <div class="row" style="align-items:flex-end">
+          <div><label>Overdue days</label><input id="escNewDays" type="number" min="1" value="3" style="width:90px"></div>
+          <div style="flex:1"><label>Notify</label>
+            <select id="escNewRecipientType" onchange="toggleEscNewEmployeePicker()">
+              <option value="TASK_OWNER">Task owner</option>
+              <option value="REPORTING_MANAGER">Reporting manager</option>
+              <option value="CREATOR">Creator</option>
+              <option value="FOLLOWER">Followers</option>
+              <option value="ADMIN">Admins</option>
+              <option value="SPECIFIC_EMPLOYEE">Specific employee</option>
+            </select>
+          </div>
+          <div id="escNewEmployeeWrap" style="flex:1;display:none"><label>Employee</label><select id="escNewEmployee" style="width:100%"></select></div>
+          <button onclick="addEscalationLevel()">Add level</button>
+        </div>
+        <p id="escLevelMsg"></p>
+      </div>
       <div class="card">
-        <div class="between"><h2 style="margin:0">Escalation Matrix</h2>
+        <div class="between"><h2 style="margin:0">Escalated tasks</h2>
           <button class="ghost" onclick="loadEscalation()">Refresh</button></div>
-        <p class="muted" style="margin-top:0">Overdue tasks bucketed by tier. Tier 1 (1-3 days) escalates to the assignee, Tier 2 (4-7 days) escalates to the assignee and admins, Tier 3 (8+ days) escalates to all admins.</p>
+        <p class="muted" style="margin-top:0">Tasks that have reached each escalation level, visible to their designated recipients. If a task is completed before its overdue threshold, it never appears here.</p>
+        <div id="escLevelTabs" class="row" style="margin-bottom:10px"></div>
         <div id="escList"></div>
       </div>
     </div>
@@ -624,6 +734,16 @@
           if you'd like this enabled, create an OAuth client in Google Cloud Console and share the Client ID/Secret and we'll wire it up.
         </p>
       </div>
+      <div id="escSettingsCard" class="card hidden">
+        <h2>Escalation timelines</h2>
+        <p class="muted" style="margin-top:0">How long before people get a reminder pop-up. Applies workspace-wide.</p>
+        <div class="row">
+          <div><label>Task not opened (hours)</label><input id="escTaskHours" type="number" min="1" style="width:110px"></div>
+          <div><label>Tagged message not replied (hours)</label><input id="escMsgHours" type="number" min="1" style="width:110px"></div>
+          <button onclick="saveEscalationSettings()">Save</button>
+        </div>
+        <p id="escSettingsMsg"></p>
+      </div>
       <div class="card">
         <h2>About</h2>
         <p class="muted" style="margin:0">Signed in as <span id="settingsWho"></span>.</p>
@@ -638,14 +758,60 @@
   </div>
 </div>
 
+<div id="reminderModal" class="modal-overlay hidden" onclick="if(event.target===this) hideReminderModal()">
+  <div class="modal-box" style="max-width:440px">
+    <div class="between">
+      <h2 style="margin:0">Reminders</h2>
+      <button class="ghost" onclick="hideReminderModal()">Dismiss</button>
+    </div>
+    <p class="muted" style="margin-top:0">These will keep showing until you take action.</p>
+    <div id="reminderList"></div>
+  </div>
+</div>
+
 <div id="taskModal" class="modal-overlay hidden" onclick="if(event.target===this) closeTaskDetail()">
   <div class="modal-box">
     <div class="between">
       <h2 id="tmTitle" style="margin:0"></h2>
-      <button class="ghost" onclick="closeTaskDetail()">Close</button>
+      <div class="row" style="gap:6px">
+        <button class="ghost" style="border-color:#c0392b;color:#c0392b" onclick="toggleAlertPanel()">&#128680; Alert</button>
+        <button class="ghost" onclick="closeTaskDetail()">Close</button>
+      </div>
     </div>
     <p id="tmDesc" class="muted" style="margin-top:0"></p>
     <div id="tmMeta" class="row" style="margin-bottom:4px"></div>
+    <div class="row" style="align-items:center;gap:6px;margin-bottom:6px;font-size:12px">
+      <span class="muted">Followers:</span>
+      <span id="tmFollowers"></span>
+      <select id="tmAddFollower" style="font-size:12px" onchange="if(this.value) addFollower(this.value); this.value='';">
+        <option value="">+ Add follower</option>
+      </select>
+    </div>
+
+    <div class="modal-section">
+      <h3>Reassign process</h3>
+      <p class="muted" style="margin-top:0;font-size:12px">Pick who's actually responsible for getting this done, without changing the original assignee or group.</p>
+      <div class="row" style="align-items:center">
+        <div style="flex:1"><label>Point of contact</label>
+          <select id="tmPoc" style="width:100%" onchange="setTaskPoc(this.value)">
+            <option value="">No PoC set - falls back to assignee</option>
+          </select>
+        </div>
+      </div>
+      <p id="tmPocMsg"></p>
+      <div id="tmReassignHistory" style="margin-top:8px;font-size:12px"></div>
+    </div>
+
+    <div id="alertPanel" class="modal-section hidden" style="border-color:#c0392b">
+      <h3>Send urgent alert</h3>
+      <p class="muted" style="margin-top:0;font-size:12px">Notify someone this task needs immediate attention. They'll see a pop-up nudge until they acknowledge it - independent of the due date.</p>
+      <label>Notify</label>
+      <select id="alertRecipient" style="width:100%"></select>
+      <label>Message (optional)</label>
+      <input id="alertMessage" placeholder="e.g. Needs your approval today" style="width:100%">
+      <button style="margin-top:8px" onclick="sendTaskAlert()">Send alert</button>
+      <p id="alertPanelMsg"></p>
+    </div>
 
     <div class="modal-section">
       <h3>Checklist</h3>
@@ -660,7 +826,7 @@
       <h3>Comments</h3>
       <div id="tmComments" style="max-height:200px;overflow-y:auto"></div>
       <div class="row" style="margin-top:8px">
-        <input id="tmNewComment" placeholder="Write a comment..." style="flex:1">
+        <input id="tmNewComment" placeholder="Write a comment..." style="flex:1" oninput="saveCommentDraft()">
         <button onclick="addComment()">Post</button>
       </div>
     </div>
@@ -722,17 +888,18 @@
     document.getElementById("app").classList.remove("hidden");
   }
 
-  const TABS = ["tasks","projects","meetings","announcements","messages","documents","notes","widgets","attendance","timesheet","leaves","reports","escalation","archive","users","notifications","settings"];
+  const TABS = ["tasks","projects","meetings","announcements","messages","broadcast","documents","notes","widgets","attendance","timesheet","leaves","reports","escalation","archive","users","notifications","settings"];
   function showTab(name){
     TABS.forEach(function(t){
       document.getElementById("view-"+t).classList.toggle("hidden", t!==name);
       document.getElementById("nav-"+t).classList.toggle("active", t===name);
     });
-    if(name==="tasks"){ loadProjects(); loadUsers(); loadTasks(); maybeShowWhatsNew(); }
+    if(name==="tasks"){ loadProjects(); loadUsers(); loadTasks(); maybeShowWhatsNew(); checkTaskDraftBanner(); restoreDashboardTab(); loadDashboardAnnouncement(); }
     if(name==="projects") loadProjectsFull();
     if(name==="meetings") loadMeetings();
     if(name==="announcements") loadAnnouncements();
-    if(name==="messages") loadMessages();
+    if(name==="messages"){ if(!allUsers.length) loadUsers(); loadMessages(); restoreMessageDraft(); }
+    if(name==="broadcast") loadBroadcast();
     if(name==="documents") loadDocuments();
     if(name==="notes") loadNotes();
     if(name==="widgets") loadWidgets();
@@ -775,6 +942,88 @@
     initTheme();
     showTab("tasks");
     refreshBell();
+    startReminderPolling();
+    startActivityHeartbeat();
+    checkBroadcastAccess();
+  }
+  /* ===================== Admin-Only Chat (broadcast channel) ===================== */
+  async function checkBroadcastAccess(){
+    try{
+      const a = await api("/api/broadcast/access");
+      document.getElementById("nav-broadcast").classList.toggle("hidden", !a.canView);
+    }catch(e){ document.getElementById("nav-broadcast").classList.add("hidden"); }
+  }
+  async function loadBroadcast(){
+    const isAdmin = ROLE === "ADMIN";
+    document.getElementById("broadcastComposeRow").classList.toggle("hidden", !isAdmin);
+    document.getElementById("broadcastMembersCard").classList.toggle("hidden", !isAdmin);
+    try{
+      const list = await api("/api/broadcast/messages");
+      const box = document.getElementById("broadcastList");
+      box.innerHTML = list.map(function(m){
+        return '<div class="msg"><div class="who">'+esc(m.fromEmail||"")+'</div>'+esc(m.text||"")+'</div>';
+      }).join("") || '<div class="muted">No announcements posted here yet.</div>';
+      box.scrollTop = box.scrollHeight;
+    }catch(e){
+      document.getElementById("broadcastList").innerHTML = '<div class="muted">'+e.message+'</div>';
+    }
+    if(isAdmin) await loadBroadcastMembers();
+  }
+  async function sendBroadcastMessage(){
+    const msg = document.getElementById("broadcastMsg");
+    const text = document.getElementById("broadcastText").value.trim();
+    if(!text) return;
+    msg.className="ok"; msg.textContent="";
+    try{
+      await api("/api/broadcast/messages", { method:"POST", body: JSON.stringify({ text: text }) });
+      document.getElementById("broadcastText").value = "";
+      await loadBroadcast();
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
+  async function loadBroadcastMembers(){
+    if(!allUsers.length) await loadUsers();
+    try{
+      const members = await api("/api/broadcast/members");
+      const memberEmails = members.map(function(m){ return m.userEmail; });
+      document.getElementById("broadcastMembersList").innerHTML = members.map(function(m){
+        return '<div class="item between">'+esc(m.userEmail)+
+          '<button class="ghost" style="color:var(--red);border-color:var(--red)" onclick="removeBroadcastMember('+m.id+')">Remove</button></div>';
+      }).join("") || '<div class="muted">No employees added yet - only admins can see this channel.</div>';
+      const sel = document.getElementById("broadcastAddMemberSelect");
+      sel.innerHTML = '<option value="">Choose an employee...</option>'+allUsers
+        .filter(function(u){ return memberEmails.indexOf(u.email)===-1; })
+        .map(function(u){ return '<option value="'+esc(u.email)+'">'+esc(u.name)+'</option>'; }).join("");
+    }catch(e){}
+  }
+  async function addBroadcastMember(){
+    const email = document.getElementById("broadcastAddMemberSelect").value;
+    if(!email) return;
+    try{ await api("/api/broadcast/members", { method:"POST", body: JSON.stringify({ email: email }) }); await loadBroadcastMembers(); }
+    catch(e){ alert(e.message); }
+  }
+  async function removeBroadcastMember(id){
+    try{ await api("/api/broadcast/members/"+id, { method:"DELETE" }); await loadBroadcastMembers(); }
+    catch(e){ alert(e.message); }
+  }
+  /* ===================== User activity heartbeat ===================== */
+  const ACTIVITY_INTERVAL_SECONDS = 30;
+  let activityTimer = null;
+  let lastInteractionAt = Date.now();
+  function markInteraction(){ lastInteractionAt = Date.now(); }
+  function startActivityHeartbeat(){
+    ["mousemove","keydown","click","scroll","touchstart"].forEach(function(ev){
+      document.addEventListener(ev, markInteraction, { passive:true });
+    });
+    if(activityTimer) clearInterval(activityTimer);
+    activityTimer = setInterval(sendActivityHeartbeat, ACTIVITY_INTERVAL_SECONDS*1000);
+  }
+  function sendActivityHeartbeat(){
+    if(!token()) return;
+    const isVisible = document.visibilityState === "visible";
+    const recentlyActive = (Date.now() - lastInteractionAt) < ACTIVITY_INTERVAL_SECONDS*1000;
+    api("/api/activity/heartbeat", { method:"POST", body: JSON.stringify({
+      platform: "WEB", active: isVisible && recentlyActive, intervalSeconds: ACTIVITY_INTERVAL_SECONDS
+    })}).catch(function(){});
   }
 
   function logout(){ clearToken(); location.reload(); }
@@ -782,8 +1031,9 @@
   async function loadProjects(){
     const projects = await api("/api/projects");
     const sel = document.getElementById("taskProject");
-    sel.innerHTML = projects.map(function(p){ return '<option value="'+p.id+'">'+esc(p.name)+'</option>'; }).join("")
-      || '<option value="">Create a project first</option>';
+    sel.innerHTML = projects.length
+      ? '<option value="">-- Select a project --</option>'+projects.map(function(p){ return '<option value="'+p.id+'">'+esc(p.name)+'</option>'; }).join("")
+      : '<option value="">Create a project first</option>';
     document.getElementById("projList").innerHTML = projects.map(function(p){
       return '<div class="item">'+esc(p.name)+(p.description?' <span class="muted">- '+esc(p.description)+'</span>':'')+'</div>';
     }).join("") || '<div class="muted">No projects yet.</div>';
@@ -816,14 +1066,33 @@
       const isSuperAdmin = u.email && u.email.toLowerCase() === SUPER_ADMIN_EMAIL;
       const isSelf = u.email && MY_EMAIL && u.email.toLowerCase() === MY_EMAIL.toLowerCase();
       const canDelete = canManage && !isSuperAdmin && !isSelf;
+      const managerOptions = '<option value="">No manager set</option>'+allUsers.filter(function(m){ return m.email!==u.email; }).map(function(m){
+        return '<option value="'+esc(m.email)+'" '+(u.managerEmail===m.email?'selected':'')+'>'+esc(m.name)+'</option>';
+      }).join("");
       return '<div class="item between"><div class="row" style="align-items:center;gap:10px">'+
         '<span class="avatar" style="width:34px;height:34px;font-size:13px">'+esc(initials)+'</span>'+
         '<div><b>'+esc(u.name)+'</b><br><span class="muted" style="font-size:12px">'+esc(u.email)+'</span></div>'+
         '</div><div class="row" style="align-items:center;gap:8px">'+
         '<span class="pill '+(u.role==="ADMIN"?"HIGH":"LOW")+'">'+esc(roleLabel(u))+'</span>'+
+        (canManage ? '<select style="font-size:12px" title="Reporting manager" onchange="setUserManager('+u.id+',this.value)">'+managerOptions+'</select>' :
+          (u.managerEmail ? '<span class="muted" style="font-size:12px">Reports to '+esc(u.managerEmail)+'</span>' : ''))+
+        (canManage ? '<input value="'+esc(u.department||"")+'" placeholder="Department" title="Department" style="font-size:12px;width:110px" onchange="setUserDepartment('+u.id+',this.value)">' :
+          (u.department ? '<span class="muted" style="font-size:12px">'+esc(u.department)+'</span>' : ''))+
         (canDelete ? '<button class="ghost" style="color:var(--red);border-color:var(--red)" onclick="deleteUser('+u.id+',\''+esc(u.name).replace(/'/g,"\\'")+'\')">Delete</button>' : '')+
         '</div></div>';
     }).join("") || '<div class="muted">No users yet.</div>';
+  }
+  async function setUserManager(id, managerEmail){
+    try{
+      await api("/api/users/"+id, { method:"PATCH", body: JSON.stringify({ managerEmail: managerEmail }) });
+      await loadUsers(); await loadUsersTab();
+    }catch(e){ alert(e.message); }
+  }
+  async function setUserDepartment(id, department){
+    try{
+      await api("/api/users/"+id, { method:"PATCH", body: JSON.stringify({ department: department }) });
+      await loadUsers(); await loadUsersTab();
+    }catch(e){ alert(e.message); }
   }
   async function deleteUser(id, name){
     if(!confirm('Remove '+name+' from the team? This cannot be undone.')) return;
@@ -859,16 +1128,121 @@
         dueDate: document.getElementById("taskDue").value || null,
         assigneeId: assigneeVal ? Number(assigneeVal) : null,
         repeatCycle: document.getElementById("taskRepeat").value,
-        siteVisitRequired: document.getElementById("taskSiteVisit").checked,
-        siteVisitCompleted: false
+        siteVisitRequired: document.getElementById("taskSiteVisit").value === "yes",
+        siteVisitCompleted: false,
+        assignedDepartment: document.getElementById("taskDepartment").value.trim() || null
       })});
       document.getElementById("taskTitle").value = "";
       document.getElementById("taskDesc").value = "";
       document.getElementById("taskDue").value = "";
-      document.getElementById("taskSiteVisit").checked = false;
+      document.getElementById("taskSiteVisit").value = "no";
+      document.getElementById("taskDepartment").value = "";
       msg.textContent = "Saved (stored on the server)";
+      discardTaskDraft();
       await loadTasks();
     }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
+
+  /* ===================== Draft Tasks (auto-save the New task form) ===================== */
+  const TASK_DRAFT_KEY = "homeland_task_draft";
+  let taskDraftSaveTimer = null;
+  function saveTaskDraft(){
+    clearTimeout(taskDraftSaveTimer);
+    taskDraftSaveTimer = setTimeout(function(){
+      const draft = {
+        title: document.getElementById("taskTitle").value,
+        desc: document.getElementById("taskDesc").value,
+        projectId: document.getElementById("taskProject").value,
+        priority: document.getElementById("taskPriority").value,
+        due: document.getElementById("taskDue").value,
+        assigneeId: document.getElementById("taskAssignee").value,
+        repeat: document.getElementById("taskRepeat").value,
+        siteVisit: document.getElementById("taskSiteVisit").value,
+        department: document.getElementById("taskDepartment").value,
+        savedAt: Date.now()
+      };
+      const isEmpty = !draft.title && !draft.desc && !draft.due && !draft.assigneeId && draft.siteVisit!=="yes" && !draft.department;
+      if(isEmpty){ localStorage.removeItem(TASK_DRAFT_KEY); }
+      else{ localStorage.setItem(TASK_DRAFT_KEY, JSON.stringify(draft)); }
+      checkTaskDraftBanner();
+      const draftCard = document.getElementById("dashboardDraftCard");
+      if(draftCard && !draftCard.classList.contains("hidden")) renderDashboardDrafts();
+    }, 300);
+  }
+  function checkTaskDraftBanner(){
+    const banner = document.getElementById("taskDraftBanner");
+    if(!banner) return;
+    const raw = localStorage.getItem(TASK_DRAFT_KEY);
+    const formHasFocus = document.activeElement && ["taskTitle","taskDesc"].indexOf(document.activeElement.id) > -1;
+    banner.classList.toggle("hidden", !raw || formHasFocus);
+  }
+  function resumeTaskDraft(){
+    const raw = localStorage.getItem(TASK_DRAFT_KEY);
+    if(!raw) return;
+    try{
+      const d = JSON.parse(raw);
+      document.getElementById("taskTitle").value = d.title || "";
+      document.getElementById("taskDesc").value = d.desc || "";
+      if(d.projectId) document.getElementById("taskProject").value = d.projectId;
+      if(d.priority) document.getElementById("taskPriority").value = d.priority;
+      document.getElementById("taskDue").value = d.due || "";
+      if(d.assigneeId) document.getElementById("taskAssignee").value = d.assigneeId;
+      if(d.repeat) document.getElementById("taskRepeat").value = d.repeat;
+      document.getElementById("taskSiteVisit").value = d.siteVisit === "yes" ? "yes" : "no";
+      document.getElementById("taskDepartment").value = d.department || "";
+    }catch(e){}
+    document.getElementById("taskDraftBanner").classList.add("hidden");
+    document.getElementById("taskTitle").focus();
+  }
+  function discardTaskDraft(){
+    localStorage.removeItem(TASK_DRAFT_KEY);
+    const banner = document.getElementById("taskDraftBanner");
+    if(banner) banner.classList.add("hidden");
+    renderDashboardDrafts();
+  }
+
+  /* ===================== Dashboard: Recent tasks / Draft tasks ===================== */
+  function dashboardTabKey(){ return "homeland_dashboard_tab_" + (MY_EMAIL || "anon"); }
+  function setDashboardTab(tab){
+    localStorage.setItem(dashboardTabKey(), tab);
+    document.getElementById("dtab-recent").className = tab==="recent" ? "active" : "";
+    document.getElementById("dtab-draft").className = tab==="draft" ? "active" : "";
+    document.getElementById("dashboardRecentCard").classList.toggle("hidden", tab!=="recent");
+    document.getElementById("dashboardDraftCard").classList.toggle("hidden", tab!=="draft");
+    if(tab==="draft") renderDashboardDrafts();
+  }
+  function restoreDashboardTab(){
+    const saved = localStorage.getItem(dashboardTabKey()) || "recent";
+    setDashboardTab(saved);
+  }
+  function renderDashboardDrafts(){
+    const raw = localStorage.getItem(TASK_DRAFT_KEY);
+    const box = document.getElementById("dashboardDraftList");
+    if(!raw){ box.innerHTML = '<div class="muted">No draft tasks right now.</div>'; return; }
+    try{
+      const d = JSON.parse(raw);
+      const savedAgo = d.savedAt ? fmtDateTime(new Date(d.savedAt).toISOString()) : "";
+      box.innerHTML = '<div class="item between"><div><b>'+esc(d.title||"(untitled)")+'</b>'+
+        (d.desc ? '<br><span class="muted" style="font-size:12px">'+esc(d.desc)+'</span>' : '')+
+        (savedAgo ? '<br><span class="muted" style="font-size:11px">Saved '+savedAgo+'</span>' : '')+'</div>'+
+        '<div class="row" style="gap:6px"><button onclick="resumeDraftFromDashboard()">Resume</button>'+
+        '<button class="ghost" onclick="discardTaskDraft()">Discard</button></div></div>';
+    }catch(e){ box.innerHTML = '<div class="muted">No draft tasks right now.</div>'; }
+  }
+  function resumeDraftFromDashboard(){
+    setDashboardTab("recent");
+    resumeTaskDraft();
+  }
+  async function loadDashboardAnnouncement(){
+    const box = document.getElementById("dashboardAnnouncementBanner");
+    try{
+      const a = await api("/api/announcements/latest");
+      if(!a){ box.classList.add("hidden"); return; }
+      box.classList.remove("hidden");
+      box.innerHTML = '<div class="between"><h2 style="margin:0;font-size:14px">&#128227; '+esc(a.title)+'</h2>'+
+        '<button class="ghost" onclick="showTab(\'announcements\')">View all</button></div>'+
+        '<p class="muted" style="margin:6px 0 0">'+esc(a.message||"")+'</p>';
+    }catch(e){ box.classList.add("hidden"); }
   }
   async function loadTasks(){
     allTasks = await api("/api/tasks?includeArchived=" + showArchived);
@@ -934,15 +1308,21 @@
     if(t.dueDate === today) return "Due today";
     return "Upcoming";
   }
+  function isUnreadTask(t){
+    if(!t.openedAt) return true;
+    if(t.lastCommentAt && (!t.lastReadAt || t.lastCommentAt > t.lastReadAt)) return true;
+    return false;
+  }
   function renderTaskRow(t){
     const overdue = t.dueDate && t.dueDate < todayStr() && t.status!=="DONE";
     const initials = t.assignee ? (t.assignee.avatarInitials || initialsOf(t.assignee.name)) : "";
     const archBtn = t.archived
       ? '<button class="ghost" onclick="restoreTask('+t.id+')">Restore</button>'
       : '<button class="ghost" onclick="archiveTask('+t.id+')">Archive</button>';
+    const unreadDot = isUnreadTask(t) ? '<span title="Unread" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--blue);margin-right:6px"></span>' : '';
     return '<tr>'+
       '<td><input type="checkbox" class="chk" '+(t.status==="DONE"?"checked":"")+' onchange="quickComplete('+t.id+', this.checked)" title="Mark done"></td>'+
-      '<td><b class="tclick" onclick="openTaskDetail('+t.id+')">'+esc(t.title)+'</b>'+
+      '<td>'+unreadDot+'<b class="tclick" onclick="openTaskDetail('+t.id+')">'+esc(t.title)+'</b>'+
         (t.archived?' <span class="pill">Archived</span>':'')+
         (t.description?'<br><span class="muted" style="font-size:12px">'+esc(t.description)+'</span>':'')+'</td>'+
       '<td class="muted">'+(t.project?esc(t.project.name):'')+'</td>'+
@@ -970,6 +1350,10 @@
     order.forEach(function(g){
       const list = groups[g];
       if(!list.length) return;
+      // Unread tasks (new assignment not yet opened, or a new comment since
+      // last read) float to the top of each section; stable sort keeps the
+      // existing due-date ordering within each unread/read group.
+      list.sort(function(a,b){ return (isUnreadTask(b)?1:0) - (isUnreadTask(a)?1:0); });
       rows += '<tr class="grouprow"><td colspan="8"><div class="grouphead">'+g+' <span class="n">'+list.length+'</span></div></td></tr>';
       rows += list.map(renderTaskRow).join("");
     });
@@ -1066,13 +1450,135 @@
       '<span class="pill '+t.priority+'">'+t.priority+'</span>'+
       '<span class="pill">'+t.status+'</span>'+
       (t.dueDate ? '<span class="pill">Due '+esc(t.dueDate)+'</span>' : '')+
-      (t.assignee ? '<span class="pill">'+esc(t.assignee.name)+'</span>' : '');
+      (t.assignee ? '<span class="pill">'+esc(t.assignee.name)+'</span>' : '')+
+      (t.assignedDepartment ? '<span class="pill">Group: '+esc(t.assignedDepartment)+'</span>' : '')+
+      (t.pointOfContact ? '<span class="pill">PoC: '+esc(t.pointOfContact.name)+'</span>' : '');
     document.getElementById("taskModal").classList.remove("hidden");
-    await Promise.all([loadSubtasks(id), loadComments(id)]);
+    renderFollowers(t);
+    renderPoc(t);
+    await Promise.all([loadSubtasks(id), loadComments(id), loadReassignHistory(id)]);
+    api("/api/tasks/"+id+"/open", { method:"PATCH" }).catch(function(){});
+    restoreCommentDraft();
+  }
+  /* ===================== Reassign process (Point of Contact) ===================== */
+  function renderPoc(t){
+    const dept = t.assignedDepartment;
+    const pool = dept ? (allUsers||[]).filter(function(u){ return u.department===dept; }) : (allUsers||[]);
+    const sel = document.getElementById("tmPoc");
+    sel.innerHTML = '<option value="">No PoC set - falls back to '+(dept ? 'the '+esc(dept)+' group' : 'assignee')+'</option>'+
+      pool.map(function(u){
+        const isCurrent = t.pointOfContact && t.pointOfContact.email===u.email;
+        return '<option value="'+esc(u.email)+'" '+(isCurrent?'selected':'')+'>'+esc(u.name)+'</option>';
+      }).join("");
+  }
+  async function setTaskPoc(email){
+    if(!activeTaskId) return;
+    const msg = document.getElementById("tmPocMsg");
+    msg.className="ok"; msg.textContent="";
+    try{
+      const t = await api("/api/tasks/"+activeTaskId+"/poc", { method:"PATCH", body: JSON.stringify({ pocEmail: email }) });
+      const idx = allTasks.findIndex(function(x){ return x.id===activeTaskId; });
+      if(idx>-1) allTasks[idx] = t;
+      msg.textContent = email ? "PoC updated" : "PoC cleared";
+      await loadReassignHistory(activeTaskId);
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
+  async function loadReassignHistory(taskId){
+    try{
+      const list = await api("/api/tasks/"+taskId+"/reassignment-history");
+      document.getElementById("tmReassignHistory").innerHTML = list.length
+        ? '<div class="muted" style="text-transform:uppercase;font-size:11px;margin-bottom:4px">Reassignment history</div>'+
+          list.map(function(h){
+            return '<div class="muted" style="margin-bottom:2px">'+fmtDateTime(h.changedAt)+' - '+esc(h.changedByEmail||"")+' set PoC to '+
+              (h.newPocEmail ? esc(h.newPocEmail) : 'none')+' (was '+(h.previousPocEmail ? esc(h.previousPocEmail) : 'none')+')</div>';
+          }).join("")
+        : "";
+    }catch(e){}
+  }
+  function fmtDateTime(iso){
+    if(!iso) return "";
+    try{ return new Date(iso).toLocaleString([], { dateStyle:"medium", timeStyle:"short" }); }catch(e){ return iso; }
+  }
+  /* ===================== Followers ===================== */
+  function renderFollowers(t){
+    const followers = t.followers || [];
+    document.getElementById("tmFollowers").innerHTML = followers.length
+      ? followers.map(function(u){
+          return '<span class="pill">'+esc(u.name)+' <a href="javascript:void(0)" onclick="removeFollower('+t.id+','+u.id+')" style="margin-left:4px">&times;</a></span>';
+        }).join(" ")
+      : '<span class="muted">None</span>';
+    const followerEmails = followers.map(function(u){ return u.email; });
+    const sel = document.getElementById("tmAddFollower");
+    sel.innerHTML = '<option value="">+ Add follower</option>'+(allUsers||[])
+      .filter(function(u){ return followerEmails.indexOf(u.email)===-1; })
+      .map(function(u){ return '<option value="'+esc(u.email)+'">'+esc(u.name)+'</option>'; }).join("");
+  }
+  async function addFollower(email){
+    if(!activeTaskId) return;
+    try{
+      const t = await api("/api/tasks/"+activeTaskId+"/followers", { method:"POST", body: JSON.stringify({ email: email }) });
+      const idx = allTasks.findIndex(function(x){ return x.id===activeTaskId; });
+      if(idx>-1) allTasks[idx] = t;
+      renderFollowers(t);
+    }catch(e){ alert(e.message); }
+  }
+  async function removeFollower(taskId, userId){
+    try{
+      const t = await api("/api/tasks/"+taskId+"/followers/"+userId, { method:"DELETE" });
+      const idx = allTasks.findIndex(function(x){ return x.id===taskId; });
+      if(idx>-1) allTasks[idx] = t;
+      renderFollowers(t);
+    }catch(e){ alert(e.message); }
   }
   function closeTaskDetail(){
     document.getElementById("taskModal").classList.add("hidden");
+    document.getElementById("alertPanel").classList.add("hidden");
     activeTaskId = null;
+  }
+  /* ===================== Task-level Alert button ===================== */
+  function toggleAlertPanel(){
+    const panel = document.getElementById("alertPanel");
+    const willShow = panel.classList.contains("hidden");
+    panel.classList.toggle("hidden");
+    if(willShow){
+      const sel = document.getElementById("alertRecipient");
+      sel.innerHTML = (allUsers||[]).filter(function(u){ return u.email!==MY_EMAIL; }).map(function(u){
+        return '<option value="'+esc(u.email)+'">'+esc(u.name)+'</option>';
+      }).join("");
+      document.getElementById("alertMessage").value = "";
+      document.getElementById("alertPanelMsg").textContent = "";
+    }
+  }
+  async function sendTaskAlert(){
+    if(!activeTaskId) return;
+    const msgEl = document.getElementById("alertPanelMsg");
+    const toEmail = document.getElementById("alertRecipient").value;
+    if(!toEmail){ msgEl.className="err"; msgEl.textContent="Choose who to notify."; return; }
+    msgEl.className="ok"; msgEl.textContent="";
+    try{
+      await api("/api/tasks/"+activeTaskId+"/alert", { method:"POST", body: JSON.stringify({
+        toEmail: toEmail, message: document.getElementById("alertMessage").value.trim()
+      })});
+      msgEl.textContent = "Alert sent - " + toEmail + " will be nudged until they acknowledge it.";
+      document.getElementById("alertMessage").value = "";
+    }catch(e){ msgEl.className="err"; msgEl.textContent = e.message; }
+  }
+  /* ===================== Unsent message drafts (task comments, per task) ===================== */
+  let commentDraftSaveTimer = null;
+  function saveCommentDraft(){
+    if(!activeTaskId) return;
+    clearTimeout(commentDraftSaveTimer);
+    commentDraftSaveTimer = setTimeout(function(){
+      const text = document.getElementById("tmNewComment").value;
+      const key = "homeland_comment_draft_" + activeTaskId;
+      if(text) localStorage.setItem(key, text);
+      else localStorage.removeItem(key);
+    }, 300);
+  }
+  function restoreCommentDraft(){
+    if(!activeTaskId) return;
+    const saved = localStorage.getItem("homeland_comment_draft_" + activeTaskId);
+    document.getElementById("tmNewComment").value = saved || "";
   }
   async function loadSubtasks(taskId){
     const list = await api("/api/tasks/"+taskId+"/subtasks");
@@ -1113,7 +1619,9 @@
     if(!text || !activeTaskId) return;
     try{
       await api("/api/tasks/"+activeTaskId+"/comments", { method:"POST", body: JSON.stringify({ text: text }) });
-      input.value = ""; await loadComments(activeTaskId);
+      input.value = "";
+      localStorage.removeItem("homeland_comment_draft_" + activeTaskId);
+      await loadComments(activeTaskId);
     }catch(e){ alert(e.message); }
   }
 
@@ -1182,24 +1690,123 @@
     document.getElementById("ch-GENERAL").className = ch==="GENERAL" ? "" : "ghost";
     document.getElementById("ch-OFFICIAL").className = ch==="OFFICIAL" ? "" : "ghost";
     loadMessages();
+    restoreMessageDraft();
+  }
+  /* ===================== Unsent message drafts (Discussion, per channel) ===================== */
+  let msgDraftSaveTimer = null;
+  function saveMessageDraft(){
+    clearTimeout(msgDraftSaveTimer);
+    msgDraftSaveTimer = setTimeout(function(){
+      const text = document.getElementById("msgText").value;
+      const key = "homeland_msg_draft_" + currentChannel;
+      if(text) localStorage.setItem(key, text);
+      else localStorage.removeItem(key);
+    }, 300);
+  }
+  function restoreMessageDraft(){
+    const saved = localStorage.getItem("homeland_msg_draft_" + currentChannel);
+    document.getElementById("msgText").value = saved || "";
+  }
+  let showArchivedMessages = false;
+  function toggleMessageArchiveView(){
+    showArchivedMessages = !showArchivedMessages;
+    const btn = document.getElementById("msgArchiveToggle");
+    btn.textContent = showArchivedMessages ? "Back to active" : "Archived";
+    btn.className = showArchivedMessages ? "" : "ghost";
+    loadMessages();
   }
   async function loadMessages(){
-    const list = await api("/api/messages/"+currentChannel);
+    const list = await api("/api/messages/"+currentChannel+(showArchivedMessages ? "?archivedOnly=true" : ""));
     const box = document.getElementById("msgList");
     box.innerHTML = list.map(function(m){
       return '<div class="msg between"><div style="flex:1"><div class="who">'+esc(m.userEmail||"")+'</div>'+esc(m.text||"")+'</div>'+
         '<div class="votebox">'+
-          '<button onclick="voteMessage('+m.id+',1)">&#9650;</button>'+
-          '<span class="n">'+(m.votes||0)+'</span>'+
-          '<button onclick="voteMessage('+m.id+',-1)">&#9660;</button>'+
+          (showArchivedMessages
+            ? '<button class="ghost" onclick="restoreMessage('+m.id+')">Restore</button>'
+            : ('<button onclick="voteMessage('+m.id+',1)">&#9650;</button>'+
+               '<span class="n">'+(m.votes||0)+'</span>'+
+               '<button onclick="voteMessage('+m.id+',-1)">&#9660;</button>'+
+               '<button class="ghost" onclick="archiveMessage('+m.id+')" title="Archive">&#128451;</button>'))+
         '</div></div>';
-    }).join("") || '<div class="muted">No messages yet.</div>';
+    }).join("") || ('<div class="muted">'+(showArchivedMessages ? "No archived messages." : "No messages yet.")+'</div>');
     box.scrollTop = box.scrollHeight;
   }
   async function voteMessage(id, delta){
     try{ await api("/api/messages/"+currentChannel+"/"+id+"/vote", { method:"PATCH", body: JSON.stringify({ delta: delta }) }); await loadMessages(); }
     catch(e){ alert(e.message); }
   }
+  async function archiveMessage(id){
+    try{ await api("/api/messages/"+currentChannel+"/"+id+"/archive", { method:"PATCH" }); await loadMessages(); }
+    catch(e){ alert(e.message); }
+  }
+  async function restoreMessage(id){
+    try{ await api("/api/messages/"+currentChannel+"/"+id+"/restore", { method:"PATCH" }); await loadMessages(); }
+    catch(e){ alert(e.message); }
+  }
+  /* ===================== @mention autocomplete ===================== */
+  let mentionMatches = [];
+  let mentionActiveIdx = -1;
+  let mentionStart = -1; // index of the "@" in the text
+  function mentionHandle(u){
+    const email = (u.email||"").toLowerCase();
+    return email.indexOf("@")>-1 ? email.slice(0, email.indexOf("@")) : email;
+  }
+  function onMentionInput(ev){
+    const input = ev.target;
+    const val = input.value;
+    const caret = input.selectionStart;
+    const upToCaret = val.slice(0, caret);
+    const at = upToCaret.lastIndexOf("@");
+    if(at===-1 || /\s/.test(upToCaret.slice(at+1))){ hideMentionMenu(); return; }
+    const partial = upToCaret.slice(at+1).toLowerCase();
+    mentionStart = at;
+    mentionMatches = (allUsers||[]).filter(function(u){
+      const handle = mentionHandle(u);
+      const name = (u.name||"").toLowerCase();
+      return !partial || handle.indexOf(partial)===0 || name.indexOf(partial)===0;
+    }).slice(0, 6);
+    if(!mentionMatches.length){ hideMentionMenu(); return; }
+    mentionActiveIdx = 0;
+    renderMentionMenu();
+  }
+  function renderMentionMenu(){
+    const menu = document.getElementById("mentionMenu");
+    menu.innerHTML = mentionMatches.map(function(u, i){
+      return '<div class="item" style="margin:0;border:none;border-radius:0;cursor:pointer;padding:8px 10px;'+
+        (i===mentionActiveIdx?'background:'+'var(--blue)':'')+'" '+
+        'onmousedown="event.preventDefault(); selectMention('+i+')">'+
+        '<b>'+esc(u.name)+'</b> <span class="muted" style="font-size:12px">@'+esc(mentionHandle(u))+'</span></div>';
+    }).join("");
+    menu.classList.remove("hidden");
+  }
+  function hideMentionMenu(){
+    mentionMatches = []; mentionActiveIdx = -1; mentionStart = -1;
+    const menu = document.getElementById("mentionMenu");
+    if(menu){ menu.classList.add("hidden"); menu.innerHTML = ""; }
+  }
+  function selectMention(i){
+    const u = mentionMatches[i];
+    if(!u) return;
+    const input = document.getElementById("msgText");
+    const val = input.value;
+    const caret = input.selectionStart;
+    const before = val.slice(0, mentionStart);
+    const after = val.slice(caret);
+    const inserted = "@"+mentionHandle(u)+" ";
+    input.value = before + inserted + after;
+    const newCaret = (before + inserted).length;
+    input.focus();
+    input.setSelectionRange(newCaret, newCaret);
+    hideMentionMenu();
+  }
+  function onMentionKeydown(ev){
+    if(!mentionMatches.length) return;
+    if(ev.key==="ArrowDown"){ ev.preventDefault(); mentionActiveIdx = (mentionActiveIdx+1) % mentionMatches.length; renderMentionMenu(); }
+    else if(ev.key==="ArrowUp"){ ev.preventDefault(); mentionActiveIdx = (mentionActiveIdx-1+mentionMatches.length) % mentionMatches.length; renderMentionMenu(); }
+    else if(ev.key==="Enter" || ev.key==="Tab"){ ev.preventDefault(); selectMention(mentionActiveIdx); }
+    else if(ev.key==="Escape"){ hideMentionMenu(); }
+  }
+
   async function sendMessage(){
     const msg = document.getElementById("msgMsg");
     const text = document.getElementById("msgText").value.trim();
@@ -1207,7 +1814,9 @@
     msg.className="ok"; msg.textContent="";
     try{
       await api("/api/messages/"+currentChannel, { method:"POST", body: JSON.stringify({ text: text }) });
-      document.getElementById("msgText").value=""; await loadMessages();
+      document.getElementById("msgText").value="";
+      localStorage.removeItem("homeland_msg_draft_" + currentChannel);
+      await loadMessages();
     }catch(e){ msg.className="err"; msg.textContent=e.message; }
   }
 
@@ -1226,9 +1835,50 @@
   async function loadDocuments(){
     const list = await api("/api/documents");
     document.getElementById("docList").innerHTML = list.map(function(d){
-      return '<div class="item between"><a href="'+esc(d.url)+'" target="_blank" rel="noopener">'+esc(d.name)+'</a>'+
+      const openControl = d.hasFile
+        ? '<a href="#" class="tclick" onclick="openUploadedDocument('+d.id+'); return false">'+esc(d.name)+'</a> <span class="muted" style="font-size:11px">(uploaded file)</span>'
+        : '<a href="'+esc(d.url)+'" target="_blank" rel="noopener">'+esc(d.name)+'</a>';
+      return '<div class="item between">'+openControl+
         '<button class="ghost" onclick="deleteDocument('+d.id+')">Delete</button></div>';
     }).join("") || '<div class="muted">No documents yet.</div>';
+  }
+  async function uploadDocument(){
+    const msg = document.getElementById("docUploadMsg");
+    const fileInput = document.getElementById("docFile");
+    const file = fileInput.files[0];
+    if(!file){ msg.className="err"; msg.textContent="Choose a file first."; return; }
+    if(file.size > 5*1024*1024){ msg.className="err"; msg.textContent="File is larger than 5MB."; return; }
+    msg.className="ok"; msg.textContent="Uploading...";
+    const form = new FormData();
+    form.append("file", file);
+    const name = document.getElementById("docUploadName").value.trim();
+    if(name) form.append("name", name);
+    try{
+      const res = await fetch(BASE_URL + "/api/documents/upload", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + token() },
+        body: form
+      });
+      if(!res.ok){
+        let m = "Upload failed ("+res.status+")";
+        try{ const b = await res.json(); m = b.error || b.message || m; }catch(e){}
+        throw new Error(m);
+      }
+      document.getElementById("docUploadName").value = ""; fileInput.value = "";
+      msg.textContent = "Uploaded"; await loadDocuments();
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
+  async function openUploadedDocument(id){
+    try{
+      const res = await fetch(BASE_URL + "/api/documents/"+id+"/download", {
+        headers: { "Authorization": "Bearer " + token() }
+      });
+      if(!res.ok) throw new Error("Could not open this file.");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+    }catch(e){ alert(e.message); }
   }
   async function deleteDocument(id){
     try{ await api("/api/documents/"+id, { method:"DELETE" }); await loadDocuments(); }
@@ -1423,12 +2073,35 @@
     let html = '<div style="margin-bottom:10px">'+stat("Total tasks",s.totalTasks)+stat("Projects",s.projects)+stat("Meetings",s.meetings)+stat("My hours",s.myHoursLogged)+stat("My pending leaves",s.myPendingLeaves)+stat("My attendance days",s.myAttendanceDays)+'</div>';
     html += '<div class="muted" style="margin-bottom:4px">Tasks by status</div><div>'+Object.keys(s.tasksByStatus).map(function(k){return stat(k,s.tasksByStatus[k]);}).join("")+'</div>';
     html += '<div class="muted" style="margin:8px 0 4px">Tasks by priority</div><div>'+Object.keys(s.tasksByPriority).map(function(k){return '<span class="pill '+k+'" style="margin:2px 4px 2px 0">'+k+': '+s.tasksByPriority[k]+'</span>';}).join("")+'</div>';
+    const pocKeys = Object.keys(s.tasksByPoc||{});
+    if(pocKeys.length){
+      html += '<div class="muted" style="margin:8px 0 4px">Tasks by point of contact (Reassign process)</div><div>'+pocKeys.map(function(k){return stat(k,s.tasksByPoc[k]);}).join("")+'</div>';
+    }
     document.getElementById("repStats").innerHTML = html;
     const alerts = await api("/api/alerts");
     document.getElementById("repAlerts").innerHTML = alerts.map(function(a){
       return '<div class="item between"><div><b>'+esc(a.title)+'</b> <span class="muted">'+esc(a.project||"")+'</span></div><span class="pill HIGH">due '+esc(a.dueDate)+'</span></div>';
     }).join("") || '<div class="muted">No overdue tasks. All caught up.</div>';
     await loadStatsChart(statsRange);
+    const activityCard = document.getElementById("activityReportCard");
+    if(ROLE==="ADMIN"){ activityCard.classList.remove("hidden"); await loadActivityReport(); }
+    else activityCard.classList.add("hidden");
+  }
+  function fmtDuration(totalSeconds){
+    const h = Math.floor(totalSeconds/3600), m = Math.floor((totalSeconds%3600)/60);
+    if(h<=0 && m<=0) return "0m";
+    return (h>0 ? h+"h " : "")+m+"m";
+  }
+  async function loadActivityReport(){
+    const days = Number(document.getElementById("activityRangeSelect").value);
+    try{
+      const rows = await api("/api/activity/report?days="+days);
+      rows.sort(function(a,b){ return (b.day+a.userEmail).localeCompare(a.day+b.userEmail); });
+      document.getElementById("activityReportBody").innerHTML = rows.map(function(r){
+        return '<tr><td>'+esc(r.userEmail)+'</td><td>'+esc(r.day)+'</td><td>'+esc(r.platform)+'</td>'+
+          '<td>'+fmtDuration(r.openSeconds)+'</td><td>'+fmtDuration(r.activeSeconds)+'</td></tr>';
+      }).join("") || '<tr><td colspan="5" class="muted">No activity recorded yet.</td></tr>';
+    }catch(e){}
   }
   async function loadStatsChart(range){
     statsRange = range;
@@ -1565,25 +2238,86 @@
     } else { donutCard.classList.add("hidden"); }
   }
 
-  /* ===================== Escalation Matrix ===================== */
+  /* ===================== Escalation Matrix (configurable levels) ===================== */
+  const recipientLabels = {
+    TASK_OWNER:"Task owner", REPORTING_MANAGER:"Reporting manager", CREATOR:"Creator",
+    FOLLOWER:"Followers", ADMIN:"Admins", SPECIFIC_EMPLOYEE:"Specific employee"
+  };
+  let escLevels = [];
+  let escMatrixData = [];
+  let escActiveLevel = null;
   async function loadEscalation(){
-    const list = await api("/api/alerts?matrix=true");
-    const tierLabel = { 1:"Tier 1 - assignee", 2:"Tier 2 - assignee + admins", 3:"Tier 3 - all admins" };
-    if(!list.length){ document.getElementById("escList").innerHTML = '<div class="muted">No overdue tasks. All caught up.</div>'; return; }
-    const groups = {1:[],2:[],3:[]};
-    list.forEach(function(e){ if(groups[e.tier]) groups[e.tier].push(e); });
-    let html = "";
-    [1,2,3].forEach(function(tier){
-      const items = groups[tier];
-      if(!items.length) return;
-      html += '<div style="margin:14px 0 6px" class="muted" style="font-size:12px;text-transform:uppercase">'+tierLabel[tier]+'</div>';
-      html += items.map(function(e){
-        return '<div class="item between"><div><b>'+esc(e.title)+'</b> <span class="muted">'+esc(e.project||"")+'</span><br>'+
-          '<span class="muted" style="font-size:12px">'+e.daysOverdue+' day(s) overdue - escalates to: '+esc((e.escalateTo||[]).join(", ")||"nobody")+'</span></div>'+
-          '<span class="pill '+e.priority+'">due '+esc(e.dueDate)+'</span></div>';
-      }).join("");
-    });
-    document.getElementById("escList").innerHTML = html;
+    const card = document.getElementById("escMatrixConfigCard");
+    if(ROLE==="ADMIN"){ card.classList.remove("hidden"); await populateEscEmployeePicker(); }
+    else card.classList.add("hidden");
+    escLevels = await api("/api/escalation-levels");
+    renderEscLevelsConfig();
+    escMatrixData = await api("/api/escalation-levels?matrix=true");
+    if(escActiveLevel===null || !escLevels.some(function(l){ return l.level===escActiveLevel; })){
+      escActiveLevel = escLevels.length ? escLevels[0].level : null;
+    }
+    renderEscLevelTabs();
+    renderEscList();
+  }
+  async function populateEscEmployeePicker(){
+    if(!allUsers.length) await loadUsers();
+    document.getElementById("escNewEmployee").innerHTML = allUsers.map(function(u){
+      return '<option value="'+esc(u.email)+'">'+esc(u.name)+'</option>';
+    }).join("");
+  }
+  function toggleEscNewEmployeePicker(){
+    const isSpecific = document.getElementById("escNewRecipientType").value === "SPECIFIC_EMPLOYEE";
+    document.getElementById("escNewEmployeeWrap").style.display = isSpecific ? "block" : "none";
+  }
+  function renderEscLevelsConfig(){
+    document.getElementById("escLevelsList").innerHTML = escLevels.length ? escLevels.map(function(l){
+      return '<div class="item between"><div><b>Level '+l.level+'</b> - '+l.overdueDays+' day(s) overdue<br>'+
+        '<span class="muted" style="font-size:12px">Notifies: '+esc(recipientLabels[l.recipientType]||l.recipientType)+
+        (l.recipientType==="SPECIFIC_EMPLOYEE" && l.specificEmployeeEmail ? ' ('+esc(l.specificEmployeeEmail)+')' : '')+'</span></div>'+
+        '<button class="ghost" style="color:var(--red);border-color:var(--red)" onclick="deleteEscalationLevel('+l.id+')">Delete</button></div>';
+    }).join("") : '<div class="muted">No levels configured yet - overdue tasks will not escalate until you add one.</div>';
+  }
+  async function addEscalationLevel(){
+    const msg = document.getElementById("escLevelMsg");
+    const days = Number(document.getElementById("escNewDays").value);
+    const recipientType = document.getElementById("escNewRecipientType").value;
+    const specificEmployeeEmail = document.getElementById("escNewEmployee").value;
+    if(!days || days<1){ msg.className="err"; msg.textContent="Enter at least 1 overdue day."; return; }
+    msg.className="ok"; msg.textContent="";
+    try{
+      await api("/api/escalation-levels", { method:"POST", body: JSON.stringify({
+        overdueDays: days, recipientType: recipientType,
+        specificEmployeeEmail: recipientType==="SPECIFIC_EMPLOYEE" ? specificEmployeeEmail : null
+      })});
+      msg.textContent = "Level added";
+      await loadEscalation();
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
+  async function deleteEscalationLevel(id){
+    if(!confirm("Delete this escalation level?")) return;
+    try{ await api("/api/escalation-levels/"+id, { method:"DELETE" }); await loadEscalation(); }
+    catch(e){ alert(e.message); }
+  }
+  function renderEscLevelTabs(){
+    const wrap = document.getElementById("escLevelTabs");
+    if(!escLevels.length){ wrap.innerHTML = ""; return; }
+    wrap.innerHTML = escLevels.map(function(l){
+      const count = escMatrixData.filter(function(e){ return e.level===l.level && e.visibleToMe; }).length;
+      return '<button class="'+(escActiveLevel===l.level?'':'ghost')+'" onclick="setEscLevel('+l.level+')">Level '+l.level+' <span class="n">'+count+'</span></button>';
+    }).join("");
+  }
+  function setEscLevel(level){ escActiveLevel = level; renderEscLevelTabs(); renderEscList(); }
+  function renderEscList(){
+    if(!escLevels.length){
+      document.getElementById("escList").innerHTML = '<div class="muted">No escalation levels configured yet.</div>';
+      return;
+    }
+    const items = escMatrixData.filter(function(e){ return e.level===escActiveLevel && e.visibleToMe; });
+    document.getElementById("escList").innerHTML = items.length ? items.map(function(e){
+      return '<div class="item between"><div><b class="tclick" onclick="showTab(\'tasks\'); openTaskDetail('+e.taskId+')">'+esc(e.title)+'</b> <span class="muted">'+esc(e.project||"")+'</span><br>'+
+        '<span class="muted" style="font-size:12px">'+e.daysOverdue+' day(s) overdue - notifies: '+esc((e.recipients||[]).join(", ")||"nobody")+'</span></div>'+
+        '<span class="pill '+e.priority+'">due '+esc(e.dueDate)+'</span></div>';
+    }).join("") : '<div class="muted">No tasks at this level for you right now.</div>';
   }
 
   /* ===================== Archive ===================== */
@@ -1622,7 +2356,82 @@
   function setTheme(theme){ applyTheme(theme); }
   function toggleTheme(){ applyTheme((document.body.getAttribute("data-theme")||"dark")==="dark" ? "light" : "dark"); }
 
-  function loadSettingsTab(){ /* content is static; theme buttons already reflect state via applyTheme */ }
+  async function loadSettingsTab(){
+    const card = document.getElementById("escSettingsCard");
+    if(ROLE !== "ADMIN"){ card.classList.add("hidden"); return; }
+    card.classList.remove("hidden");
+    try{
+      const s = await api("/api/escalation-settings");
+      document.getElementById("escTaskHours").value = s.taskNotOpenedHours;
+      document.getElementById("escMsgHours").value = s.messageNotRepliedHours;
+    }catch(e){}
+  }
+  async function saveEscalationSettings(){
+    const msg = document.getElementById("escSettingsMsg");
+    const taskHours = Number(document.getElementById("escTaskHours").value);
+    const msgHours = Number(document.getElementById("escMsgHours").value);
+    if(!taskHours || taskHours<1 || !msgHours || msgHours<1){
+      msg.className="err"; msg.textContent="Enter at least 1 hour for both."; return;
+    }
+    msg.className="ok"; msg.textContent="";
+    try{
+      await api("/api/escalation-settings", { method:"PUT", body: JSON.stringify({
+        taskNotOpenedHours: taskHours, messageNotRepliedHours: msgHours
+      })});
+      msg.textContent = "Saved";
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
+  }
+
+  /* ===================== Escalation reminder pop-ups ===================== */
+  let reminderTimer = null;
+  async function checkReminders(){
+    try{
+      const r = await api("/api/escalation-settings/pending");
+      const tasks = r.tasks || [], mentions = r.mentions || [], alerts = r.alerts || [], anns = r.announcements || [];
+      if(!tasks.length && !mentions.length && !alerts.length && !anns.length){ hideReminderModal(); return; }
+      var Q = String.fromCharCode(39);
+      let html = "";
+      anns.forEach(function(a){
+        html += '<div class="item between" style="border-color:var(--blue)"><div><b>&#128227; '+esc(a.title||"")+'</b><br>'+
+          '<span class="muted" style="font-size:12px">'+esc(a.message||"")+'</span></div>'+
+          '<button class="ghost" onclick="acknowledgeAnnouncement('+a.id+')">Acknowledge</button></div>';
+      });
+      alerts.forEach(function(a){
+        html += '<div class="item between" style="border-color:#c0392b"><div><b>&#128680; '+esc(a.taskTitle||"")+'</b><br>'+
+          '<span class="muted" style="font-size:12px">'+esc(a.fromEmail||"")+' - '+esc(a.message||"")+'</span></div>'+
+          '<div class="row" style="gap:6px">'+
+          '<button onclick="showTab('+Q+'tasks'+Q+'); openTaskDetail('+a.taskId+'); hideReminderModal()">Open</button>'+
+          '<button class="ghost" onclick="acknowledgeAlert('+a.id+')">Acknowledge</button>'+
+          '</div></div>';
+      });
+      tasks.forEach(function(t){
+        html += '<div class="item between"><div><b>'+esc(t.title)+'</b><br>'+
+          '<span class="muted" style="font-size:12px">Not opened for '+t.hoursSinceAssigned+'h</span></div>'+
+          '<button onclick="showTab('+Q+'tasks'+Q+'); openTaskDetail('+t.taskId+'); hideReminderModal()">Open</button></div>';
+      });
+      mentions.forEach(function(m){
+        html += '<div class="item between"><div><b>You were mentioned</b> <span class="muted">in '+esc(m.channel)+'</span><br>'+
+          '<span class="muted" style="font-size:12px">'+esc(m.preview||"")+' - '+m.hoursSinceMentioned+'h unreplied</span></div>'+
+          '<button onclick="showTab('+Q+'messages'+Q+'); hideReminderModal()">Go to Discussion</button></div>';
+      });
+      document.getElementById("reminderList").innerHTML = html;
+      document.getElementById("reminderModal").classList.remove("hidden");
+    }catch(e){}
+  }
+  async function acknowledgeAlert(id){
+    try{ await api("/api/task-alerts/"+id+"/acknowledge", { method:"PATCH" }); await checkReminders(); }
+    catch(e){ alert(e.message); }
+  }
+  async function acknowledgeAnnouncement(id){
+    try{ await api("/api/announcements/"+id+"/acknowledge", { method:"PATCH" }); await checkReminders(); }
+    catch(e){ alert(e.message); }
+  }
+  function hideReminderModal(){ document.getElementById("reminderModal").classList.add("hidden"); }
+  function startReminderPolling(){
+    checkReminders();
+    if(reminderTimer) clearInterval(reminderTimer);
+    reminderTimer = setInterval(checkReminders, 5*60*1000);
+  }
 
   async function inviteTeammate(){
     const msg = document.getElementById("invMsg");
