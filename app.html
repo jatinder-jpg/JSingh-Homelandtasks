@@ -224,6 +224,9 @@
   .dash2col{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
   .dash2col>.card{min-width:0}
   @media(max-width:760px){.dash2col{grid-template-columns:1fr}}
+  .dash2col-eq{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .dash2col-eq>.card{min-width:0}
+  @media(max-width:760px){.dash2col-eq{grid-template-columns:1fr}}
   .dashwelcome{margin:0;display:flex;align-items:center;gap:14px}
   .dashwelcome .emoji{font-size:36px;flex-shrink:0}
   .dashdaystrip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
@@ -301,10 +304,10 @@
 
     <div id="view-dashboard" class="hidden">
       <div class="dashtoprow">
-        <div class="statcard static"><div class="n" id="dashStatTotal">0</div><div class="l">Total Task</div></div>
-        <div class="statcard static"><div class="n" id="dashStatMine">0</div><div class="l">Assigned to me</div></div>
-        <div class="statcard static"><div class="n" id="dashStatDueToday">0</div><div class="l">Due today</div></div>
-        <div class="statcard static"><div class="n" id="dashStatPastDue">0</div><div class="l">Past due tasks</div></div>
+        <div class="statcard" onclick="dashOpenFilter('all')" title="Click to view in Task list"><div class="n" id="dashStatTotal">0</div><div class="l">Total Task</div></div>
+        <div class="statcard" onclick="dashOpenFilter('mine')" title="Click to view in Task list"><div class="n" id="dashStatMine">0</div><div class="l">Assigned to me</div></div>
+        <div class="statcard" onclick="dashOpenFilter('dueToday')" title="Click to view in Task list"><div class="n" id="dashStatDueToday">0</div><div class="l">Due today</div></div>
+        <div class="statcard" onclick="dashOpenFilter('pastDue')" title="Click to view in Task list"><div class="n" id="dashStatPastDue">0</div><div class="l">Past due tasks</div></div>
         <div class="card dashwelcome">
           <div style="flex:1">
             <div id="dashWelcomeMsg" style="font-weight:600;margin-bottom:4px"></div>
@@ -315,7 +318,7 @@
         </div>
       </div>
 
-      <div class="dash2col">
+      <div class="dash2col-eq">
         <div class="card">
           <div class="between">
             <h2 style="margin:0">Statistics</h2>
@@ -324,7 +327,9 @@
               <button id="dashStatsMonthly" onclick="setDashStatsRange('monthly')">Monthly</button>
             </div>
           </div>
-          <canvas id="dashLineChart" height="230"></canvas>
+          <div style="position:relative;height:220px">
+            <canvas id="dashLineChart"></canvas>
+          </div>
         </div>
         <div class="card">
           <h2>Priority Task Summary</h2>
@@ -2280,6 +2285,10 @@
     renderDashCalStrip();
     renderDashTeamIncomplete();
   }
+  function dashOpenFilter(key){
+    statFilter = key;
+    showTab("tasks");
+  }
   function renderDashStatCards(){
     const today = todayStr();
     const total = allTasks.length;
@@ -2353,6 +2362,7 @@
       },
       options: {
         responsive:true,
+        maintainAspectRatio:false,
         plugins:{ legend:{ labels:{ color:textColor } } },
         scales:{
           x:{ ticks:{ color:mutedColor }, grid:{ color:"rgba(128,128,128,.15)" } },
