@@ -92,11 +92,14 @@
   /* ---- Stat cards ---- */
   .statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
   @media(max-width:760px){.statgrid{grid-template-columns:1fr 1fr}}
-  .statcard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .statcard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;
+    cursor:pointer;transition:border-color .12s,transform .12s}
+  .statcard:hover{border-color:var(--blue)}
+  .statcard.active{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue) inset}
   .statcard .n{font-size:26px;font-weight:700}
   .statcard .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
 
-  /* ---- View tabs (List/Kanban/Calendar) ---- */
+  /* ---- View tabs (List/Kanban/Calendar, category tabs) ---- */
   .viewtabs{display:flex;gap:6px;margin-bottom:14px}
   .viewtabs button{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:500;padding:6px 14px;font-size:13px}
   .viewtabs button.active{background:var(--blue);color:#1a1205;border-color:var(--blue);font-weight:600}
@@ -108,6 +111,36 @@
 
   .avatar{width:24px;height:24px;border-radius:999px;background:var(--blue);color:#1a1205;font-size:10px;
     font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+
+  /* ---- Gmail-style inbox task list ---- */
+  .mlist{border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .mgroup:first-child .mgrouphead{border-top:none}
+  .mgrouphead{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--panel);border-top:1px solid var(--border)}
+  .mgrouphead .n{background:var(--border);color:var(--text);border-radius:999px;padding:0 8px;font-size:11px}
+  .mrow{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--border);cursor:default}
+  .mgroup:first-child .mrow:first-of-type{border-top:none}
+  .mrow:hover{background:var(--panel)}
+  .mrow.done .msubject b, .mrow.done .mproj{opacity:.55;text-decoration:line-through}
+  .mchk{flex-shrink:0}
+  .mudot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--blue);margin-right:6px;flex-shrink:0}
+  .mudot.hidden{visibility:hidden}
+  .mmain{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;overflow:hidden}
+  .mproj{flex-shrink:0;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--muted)}
+  .mrow.unread .mproj{color:var(--text);font-weight:700}
+  .msubject{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+  .msubject b{font-weight:500;cursor:pointer}
+  .mrow.unread .msubject b{font-weight:700}
+  .msubject b:hover{text-decoration:underline}
+  .msnippet{color:var(--muted);font-weight:400}
+  .mright{display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .mdate{font-size:12px;color:var(--muted);min-width:64px;text-align:right}
+  .mdate.overdue{color:var(--red);font-weight:600}
+  .mactions{display:flex;align-items:center;gap:4px;opacity:0;transition:opacity .12s;flex-shrink:0}
+  .mrow:hover .mactions{opacity:1}
+  .mactions button, .mactions select{background:transparent;border:1px solid var(--border);color:var(--muted);
+    padding:4px 8px;font-size:11px;border-radius:6px}
+  .mactions button:hover{color:var(--text);border-color:var(--text)}
 
   /* ---- Kanban board ---- */
   .kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
@@ -257,16 +290,7 @@
       </div>
       <div class="statgrid" id="statCards"></div>
 
-      <div class="grid">
-        <div class="card">
-          <h2>Projects</h2>
-          <div class="row">
-            <input id="projName" placeholder="New project name" style="flex:1">
-            <button onclick="addProject()">Add</button>
-          </div>
-          <p id="projMsg"></p>
-          <div id="projList" style="margin-top:10px"></div>
-        </div>
+      <div class="grid" style="grid-template-columns:1fr">
         <div class="card">
           <h2>New task</h2>
           <div id="taskDraftBanner" class="hidden" style="background:var(--panel);border:1px solid var(--border);
@@ -326,6 +350,12 @@
           <button class="ghost" onclick="loadTasks()">Refresh</button></div>
 
         <div class="viewtabs">
+          <button id="ctab-all" class="active" onclick="setCategoryTab('all')">All</button>
+          <button id="ctab-unread" onclick="setCategoryTab('unread')">Unread</button>
+          <button id="ctab-flagged" onclick="setCategoryTab('flagged')">Flagged</button>
+        </div>
+
+        <div class="viewtabs">
           <button id="vtab-list" class="active" onclick="setTaskView('list')">List</button>
           <button id="vtab-kanban" onclick="setTaskView('kanban')">Kanban</button>
           <button id="vtab-calendar" onclick="setTaskView('calendar')">Calendar</button>
@@ -349,12 +379,7 @@
         <div id="summary" class="muted" style="margin:0 0 12px"></div>
 
         <div id="tv-list">
-          <div class="tbl-wrap">
-            <table class="tbl">
-              <thead><tr><th></th><th>Task</th><th>Project</th><th>Assignee</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead>
-              <tbody id="taskList"></tbody>
-            </table>
-          </div>
+          <div id="taskList" class="mlist"></div>
         </div>
 
         <div id="tv-kanban" class="hidden">
@@ -846,6 +871,8 @@
   let projectFilter = "";
   let sortBy = "due";
   let taskView = "list";
+  let statFilter = "all";
+  let categoryTab = "all";
   let calMonth = new Date(); calMonth.setDate(1);
   let statsRange = "monthly";
   let showArchived = false;
@@ -1034,9 +1061,12 @@
     sel.innerHTML = projects.length
       ? '<option value="">-- Select a project --</option>'+projects.map(function(p){ return '<option value="'+p.id+'">'+esc(p.name)+'</option>'; }).join("")
       : '<option value="">Create a project first</option>';
-    document.getElementById("projList").innerHTML = projects.map(function(p){
-      return '<div class="item">'+esc(p.name)+(p.description?' <span class="muted">- '+esc(p.description)+'</span>':'')+'</div>';
-    }).join("") || '<div class="muted">No projects yet.</div>';
+    const projListEl = document.getElementById("projList");
+    if(projListEl){
+      projListEl.innerHTML = projects.map(function(p){
+        return '<div class="item">'+esc(p.name)+(p.description?' <span class="muted">- '+esc(p.description)+'</span>':'')+'</div>';
+      }).join("") || '<div class="muted">No projects yet.</div>';
+    }
     const pf = document.getElementById("projFilterSelect");
     const keep = pf.value;
     pf.innerHTML = '<option value="">All projects</option>' + projects.map(function(p){
@@ -1262,9 +1292,26 @@
     const mine = allTasks.filter(function(t){ return t.assignee && t.assignee.email===MY_EMAIL; }).length;
     const dueToday = allTasks.filter(function(t){ return t.dueDate===today && t.status!=="DONE"; }).length;
     const pastDue = allTasks.filter(function(t){ return t.dueDate && t.dueDate<today && t.status!=="DONE"; }).length;
-    function card(label, n){ return '<div class="statcard"><div class="n">'+n+'</div><div class="l">'+label+'</div></div>'; }
+    function card(key, label, n){
+      return '<div class="statcard'+(statFilter===key?' active':'')+'" onclick="setStatFilter('+String.fromCharCode(39)+key+String.fromCharCode(39)+')" title="Click to filter the list below">'+
+        '<div class="n">'+n+'</div><div class="l">'+label+'</div></div>';
+    }
     document.getElementById("statCards").innerHTML =
-      card("Total Task", total) + card("Assigned to me", mine) + card("Due today", dueToday) + card("Past due tasks", pastDue);
+      card("all","Total Task", total) + card("mine","Assigned to me", mine) + card("dueToday","Due today", dueToday) + card("pastDue","Past due tasks", pastDue);
+  }
+  function setStatFilter(f){
+    statFilter = (statFilter===f) ? "all" : f;
+    renderStatCards();
+    renderTaskTable();
+    if(taskView==="kanban") renderKanban();
+  }
+  function setCategoryTab(f){
+    categoryTab = f;
+    ["all","unread","flagged"].forEach(function(c){
+      const el = document.getElementById("ctab-"+c);
+      if(el) el.classList.toggle("active", c===f);
+    });
+    renderTaskTable();
   }
   function setTaskFilter(f){
     taskFilter = f;
@@ -1287,9 +1334,15 @@
   }
   function filterTasks(){
     const q = (document.getElementById("taskSearch").value || "").toLowerCase();
+    const today = todayStr();
     let tasks = allTasks.filter(function(t){
       if(taskFilter!=="ALL" && t.status!==taskFilter) return false;
       if(projectFilter && (!t.project || String(t.project.id)!==projectFilter)) return false;
+      if(statFilter==="mine" && !(t.assignee && t.assignee.email===MY_EMAIL)) return false;
+      if(statFilter==="dueToday" && !(t.dueDate===today && t.status!=="DONE")) return false;
+      if(statFilter==="pastDue" && !(t.dueDate && t.dueDate<today && t.status!=="DONE")) return false;
+      if(categoryTab==="unread" && !isUnreadTask(t)) return false;
+      if(categoryTab==="flagged" && t.priority!=="HIGH") return false;
       const title = (t.title||"").toLowerCase();
       const proj = (t.project && t.project.name ? t.project.name : "").toLowerCase();
       if(q && title.indexOf(q)===-1 && proj.indexOf(q)===-1) return false;
@@ -1316,24 +1369,35 @@
   function renderTaskRow(t){
     const overdue = t.dueDate && t.dueDate < todayStr() && t.status!=="DONE";
     const initials = t.assignee ? (t.assignee.avatarInitials || initialsOf(t.assignee.name)) : "";
-    const archBtn = t.archived
-      ? '<button class="ghost" onclick="restoreTask('+t.id+')">Restore</button>'
-      : '<button class="ghost" onclick="archiveTask('+t.id+')">Archive</button>';
-    const unreadDot = isUnreadTask(t) ? '<span title="Unread" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--blue);margin-right:6px"></span>' : '';
-    return '<tr>'+
-      '<td><input type="checkbox" class="chk" '+(t.status==="DONE"?"checked":"")+' onchange="quickComplete('+t.id+', this.checked)" title="Mark done"></td>'+
-      '<td>'+unreadDot+'<b class="tclick" onclick="openTaskDetail('+t.id+')">'+esc(t.title)+'</b>'+
-        (t.archived?' <span class="pill">Archived</span>':'')+
-        (t.description?'<br><span class="muted" style="font-size:12px">'+esc(t.description)+'</span>':'')+'</td>'+
-      '<td class="muted">'+(t.project?esc(t.project.name):'')+'</td>'+
-      '<td>'+(t.assignee ? '<span class="avatar" title="'+esc(t.assignee.name)+'">'+esc(initials)+'</span>' : '<span class="muted">-</span>')+'</td>'+
-      '<td'+(overdue?' style="color:var(--red)"':'')+'>'+(t.dueDate || '-')+'</td>'+
-      '<td><span class="pill '+t.priority+'">'+t.priority+'</span></td>'+
-      '<td><select onchange="changeStatus('+t.id+', this.value)">'+
-        STATUSES.map(function(s){ return '<option '+(t.status===s?'selected':'')+'>'+s+'</option>'; }).join("")+
-      '</select></td>'+
-      '<td style="text-align:right;white-space:nowrap">'+archBtn+' <button class="ghost" onclick="removeTask('+t.id+')">Delete</button></td>'+
-    '</tr>';
+    const unread = isUnreadTask(t);
+    const archAction = t.archived
+      ? '<button onclick="restoreTask('+t.id+')" title="Restore">Restore</button>'
+      : '<button onclick="archiveTask('+t.id+')" title="Archive">Archive</button>';
+    const snippet = t.description ? ' <span class="msnippet">- '+esc(t.description)+'</span>' : '';
+    const avatar = t.assignee
+      ? '<span class="avatar" title="'+esc(t.assignee.name)+'">'+esc(initials)+'</span>'
+      : '<span class="avatar" style="background:var(--border);color:var(--muted)" title="Unassigned">-</span>';
+    return '<div class="mrow'+(unread?' unread':'')+(t.status==="DONE"?' done':'')+'" data-id="'+t.id+'">'+
+      '<input type="checkbox" class="chk mchk" '+(t.status==="DONE"?"checked":"")+' onchange="quickComplete('+t.id+', this.checked)" title="Mark done">'+
+      '<span class="mudot'+(unread?'':' hidden')+'" title="Unread"></span>'+
+      avatar+
+      '<div class="mmain">'+
+        '<span class="mproj">'+(t.project?esc(t.project.name):'No project')+'</span>'+
+        '<span class="msubject"><b class="tclick" onclick="openTaskDetail('+t.id+')">'+esc(t.title)+'</b>'+
+          (t.archived?' <span class="pill">Archived</span>':'')+snippet+'</span>'+
+      '</div>'+
+      '<div class="mright">'+
+        '<span class="pill '+t.priority+'">'+t.priority+'</span>'+
+        '<span class="mdate'+(overdue?' overdue':'')+'">'+(t.dueDate || '-')+'</span>'+
+        '<div class="mactions">'+
+          '<select onchange="changeStatus('+t.id+', this.value)" title="Change status">'+
+            STATUSES.map(function(s){ return '<option '+(t.status===s?'selected':'')+'>'+s+'</option>'; }).join("")+
+          '</select>'+
+          archAction+
+          '<button onclick="removeTask('+t.id+')" title="Delete">Delete</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
   }
   function renderTaskTable(){
     const tasks = filterTasks();
@@ -1346,18 +1410,19 @@
     const order = ["Overdue","Due today","Upcoming","No due date"];
     const groups = {}; order.forEach(function(o){ groups[o] = []; });
     tasks.forEach(function(t){ groups[dateBucket(t)].push(t); });
-    let rows = "";
+    let html = "";
     order.forEach(function(g){
       const list = groups[g];
       if(!list.length) return;
       // Unread tasks (new assignment not yet opened, or a new comment since
-      // last read) float to the top of each section; stable sort keeps the
-      // existing due-date ordering within each unread/read group.
+      // last read) float to the top of each section, like Gmail keeping
+      // unread mail visually first within a date group; stable sort keeps
+      // the existing due-date ordering within each unread/read group.
       list.sort(function(a,b){ return (isUnreadTask(b)?1:0) - (isUnreadTask(a)?1:0); });
-      rows += '<tr class="grouprow"><td colspan="8"><div class="grouphead">'+g+' <span class="n">'+list.length+'</span></div></td></tr>';
-      rows += list.map(renderTaskRow).join("");
+      html += '<div class="mgroup"><div class="mgrouphead">'+g+' <span class="n">'+list.length+'</span></div>'+
+        list.map(renderTaskRow).join("")+'</div>';
     });
-    document.getElementById("taskList").innerHTML = rows || '<tr><td colspan="8" class="muted">No tasks match.</td></tr>';
+    document.getElementById("taskList").innerHTML = html || '<div class="muted" style="padding:24px;text-align:center">No tasks match.</div>';
   }
   function renderKanban(){
     const tasks = filterTasks();
