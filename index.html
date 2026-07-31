@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>HOMELAND TASKS - Live</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#0c1220; --panel:#17213c; --border:#2b3554; --text:#ece5d5; --muted:#98a1b8;
@@ -214,6 +215,28 @@
   /* ---- Drag drop kanban ---- */
   .kcard[draggable="true"]{cursor:grab}
   .kcol.dragover{border-color:var(--blue);background:#182246}
+
+  /* ---- Dashboard (Taskopad-style overview) ---- */
+  .dashtoprow{display:grid;grid-template-columns:repeat(4,1fr) 1.6fr;gap:12px;margin-bottom:16px}
+  @media(max-width:1000px){.dashtoprow{grid-template-columns:repeat(2,1fr)}}
+  .statcard.static{cursor:default}
+  .statcard.static:hover{border-color:var(--border)}
+  .dash2col{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+  @media(max-width:760px){.dash2col{grid-template-columns:1fr}}
+  .dashwelcome{margin:0;display:flex;align-items:center;gap:14px}
+  .dashwelcome .emoji{font-size:36px;flex-shrink:0}
+  .dashdaystrip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+  .dashdaycell{flex:0 0 60px;text-align:center;border:1px solid var(--border);border-radius:8px;padding:8px 4px}
+  .dashdaycell.today{border-color:var(--blue);background:rgba(201,162,80,.12)}
+  .dashdaycell .dow{font-size:10px;color:var(--muted);text-transform:uppercase}
+  .dashdaycell .dnum{font-weight:700;font-size:15px;margin-top:2px}
+  .dashdaycell .ddot{width:5px;height:5px;border-radius:999px;background:var(--red);margin:4px auto 0}
+  .dashteamrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+  .dashteamrow:last-child{border-bottom:none}
+  .dashteamrow .name{flex:1;font-size:13px}
+  .dashteamrow .cnt{background:var(--border);color:var(--text);border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600}
+  .donutlegend{display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:8px}
+  .donutlegend .dot{width:10px;height:10px;border-radius:999px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -239,7 +262,8 @@
     <div class="sidebar">
       <div class="brandrow"><span class="brand"></span><b>HOMELAND<br>TASKS</b></div>
       <div class="sidenav">
-        <button id="nav-tasks" class="active" onclick="showTab('tasks')">Tasks</button>
+        <button id="nav-dashboard" class="active" onclick="showTab('dashboard')">Dashboard</button>
+        <button id="nav-tasks" onclick="showTab('tasks')">Tasks</button>
         <button id="nav-projects" onclick="showTab('projects')">Projects</button>
         <button id="nav-meetings" onclick="showTab('meetings')">Meetings</button>
         <button id="nav-announcements" onclick="showTab('announcements')">Announcements</button>
@@ -273,6 +297,54 @@
         <div class="bell" onclick="showTab('notifications')" title="Notifications">&#128276;
           <span id="bell" class="badge hidden">0</span></div>
       </div>
+
+    <div id="view-dashboard" class="hidden">
+      <div class="dashtoprow">
+        <div class="statcard static"><div class="n" id="dashStatTotal">0</div><div class="l">Total Task</div></div>
+        <div class="statcard static"><div class="n" id="dashStatMine">0</div><div class="l">Assigned to me</div></div>
+        <div class="statcard static"><div class="n" id="dashStatDueToday">0</div><div class="l">Due today</div></div>
+        <div class="statcard static"><div class="n" id="dashStatPastDue">0</div><div class="l">Past due tasks</div></div>
+        <div class="card dashwelcome">
+          <div style="flex:1">
+            <div id="dashWelcomeMsg" style="font-weight:600;margin-bottom:4px"></div>
+            <div class="muted" style="font-size:13px;margin-bottom:10px" id="dashWelcomeSub"></div>
+            <button onclick="showTab('tasks')">+ Add Task</button>
+          </div>
+          <div class="emoji" aria-hidden="true">&#128221;</div>
+        </div>
+      </div>
+
+      <div class="dash2col">
+        <div class="card">
+          <div class="between">
+            <h2 style="margin:0">Statistics</h2>
+            <div class="row">
+              <button id="dashStatsWeekly" class="ghost" onclick="setDashStatsRange('weekly')">Weekly</button>
+              <button id="dashStatsMonthly" onclick="setDashStatsRange('monthly')">Monthly</button>
+            </div>
+          </div>
+          <canvas id="dashLineChart" height="230"></canvas>
+        </div>
+        <div class="card">
+          <h2>Priority Task Summary</h2>
+          <div id="dashPriorityDonut"></div>
+        </div>
+      </div>
+
+      <div class="dash2col">
+        <div class="card">
+          <div class="between">
+            <h2 style="margin:0" id="dashCalLabel">Calendar</h2>
+            <div class="row"><button class="ghost" onclick="dashCalPrev()">&lsaquo;</button><button class="ghost" onclick="dashCalNext()">&rsaquo;</button></div>
+          </div>
+          <div id="dashCalStrip" class="dashdaystrip"></div>
+        </div>
+        <div class="card">
+          <h2>Team Incomplete Task</h2>
+          <div id="dashTeamIncomplete"></div>
+        </div>
+      </div>
+    </div>
 
     <div id="view-tasks">
       <div id="whatsNew" class="whatsnew hidden">
@@ -876,6 +948,9 @@
   let calMonth = new Date(); calMonth.setDate(1);
   let statsRange = "monthly";
   let showArchived = false;
+  let dashStatsRange = "monthly";
+  let dashCalMonth = new Date(); dashCalMonth.setDate(1);
+  let dashLineChartInstance = null;
   let activeTaskId = null;
   let draggingTaskId = null;
 
@@ -915,12 +990,13 @@
     document.getElementById("app").classList.remove("hidden");
   }
 
-  const TABS = ["tasks","projects","meetings","announcements","messages","broadcast","documents","notes","widgets","attendance","timesheet","leaves","reports","escalation","archive","users","notifications","settings"];
+  const TABS = ["dashboard","tasks","projects","meetings","announcements","messages","broadcast","documents","notes","widgets","attendance","timesheet","leaves","reports","escalation","archive","users","notifications","settings"];
   function showTab(name){
     TABS.forEach(function(t){
       document.getElementById("view-"+t).classList.toggle("hidden", t!==name);
       document.getElementById("nav-"+t).classList.toggle("active", t===name);
     });
+    if(name==="dashboard"){ loadProjects(); loadUsers().then(renderDashboardView); loadTasks().then(renderDashboardView); }
     if(name==="tasks"){ loadProjects(); loadUsers(); loadTasks(); maybeShowWhatsNew(); checkTaskDraftBanner(); restoreDashboardTab(); loadDashboardAnnouncement(); }
     if(name==="projects") loadProjectsFull();
     if(name==="meetings") loadMeetings();
@@ -967,7 +1043,7 @@
     document.getElementById("settingsWho").textContent = name + " (" + MY_EMAIL + ") - " + role;
     showApp();
     initTheme();
-    showTab("tasks");
+    showTab("dashboard");
     refreshBell();
     startReminderPolling();
     startActivityHeartbeat();
@@ -2190,6 +2266,171 @@
         '<div class="muted" style="margin-top:6px;font-size:12px">'+total+' task(s) - '+range+'</div></div></div>';
     }
     document.getElementById("statsDonut").innerHTML = html;
+  }
+
+  /* ===================== Dashboard (Taskopad-style overview) ===================== */
+  function renderDashboardView(){
+    const view = document.getElementById("view-dashboard");
+    if(!view || view.classList.contains("hidden")) return;
+    renderDashStatCards();
+    renderDashWelcome();
+    renderDashLineChart();
+    renderDashPriorityDonut();
+    renderDashCalStrip();
+    renderDashTeamIncomplete();
+  }
+  function renderDashStatCards(){
+    const today = todayStr();
+    const total = allTasks.length;
+    const mine = allTasks.filter(function(t){ return t.assignee && t.assignee.email===MY_EMAIL; }).length;
+    const dueToday = allTasks.filter(function(t){ return t.dueDate===today && t.status!=="DONE"; }).length;
+    const pastDue = allTasks.filter(function(t){ return t.dueDate && t.dueDate<today && t.status!=="DONE"; }).length;
+    document.getElementById("dashStatTotal").textContent = total;
+    document.getElementById("dashStatMine").textContent = mine;
+    document.getElementById("dashStatDueToday").textContent = dueToday;
+    document.getElementById("dashStatPastDue").textContent = pastDue;
+  }
+  function renderDashWelcome(){
+    const msg = document.getElementById("dashWelcomeMsg");
+    const sub = document.getElementById("dashWelcomeSub");
+    if(!allTasks.length){
+      msg.textContent = "You haven't added any tasks.";
+      sub.textContent = "Welcome! Let's get started.";
+    } else {
+      msg.textContent = "Ready to tackle today?";
+      sub.textContent = allTasks.length + " task(s) across your workspace.";
+    }
+  }
+  function setDashStatsRange(range){
+    dashStatsRange = range;
+    document.getElementById("dashStatsWeekly").className = range==="weekly" ? "active" : "ghost";
+    document.getElementById("dashStatsMonthly").className = range==="monthly" ? "active" : "ghost";
+    renderDashLineChart();
+  }
+  function renderDashLineChart(){
+    const canvas = document.getElementById("dashLineChart");
+    if(!canvas || typeof Chart === "undefined") return;
+    let labels, completedArr, incompleteArr;
+    if(dashStatsRange==="weekly"){
+      labels = []; completedArr = []; incompleteArr = [];
+      const now = new Date();
+      for(let i=7;i>=0;i--){
+        const start = new Date(now); start.setDate(now.getDate() - now.getDay() - 7*i);
+        const end = new Date(start); end.setDate(start.getDate()+6);
+        const startStr = ymd(start), endStr = ymd(end);
+        labels.push("Wk " + (8-i));
+        let c=0, ic=0;
+        allTasks.forEach(function(t){
+          if(!t.dueDate || t.dueDate<startStr || t.dueDate>endStr) return;
+          if(t.status==="DONE") c++; else ic++;
+        });
+        completedArr.push(c); incompleteArr.push(ic);
+      }
+    } else {
+      labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const year = new Date().getFullYear();
+      completedArr = new Array(12).fill(0); incompleteArr = new Array(12).fill(0);
+      allTasks.forEach(function(t){
+        if(!t.dueDate) return;
+        const d = new Date(t.dueDate + "T00:00:00");
+        if(d.getFullYear()!==year) return;
+        const m = d.getMonth();
+        if(t.status==="DONE") completedArr[m]++; else incompleteArr[m]++;
+      });
+    }
+    if(dashLineChartInstance) dashLineChartInstance.destroy();
+    const mutedColor = getComputedStyle(document.body).getPropertyValue("--muted") || "#98a1b8";
+    const textColor = getComputedStyle(document.body).getPropertyValue("--text") || "#ece5d5";
+    dashLineChartInstance = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          { label:"Completed", data: completedArr, borderColor:"#34c274", backgroundColor:"rgba(52,194,116,.15)", tension:.35, fill:true },
+          { label:"Incomplete", data: incompleteArr, borderColor:"#f0616a", backgroundColor:"rgba(240,97,106,.15)", tension:.35, fill:true }
+        ]
+      },
+      options: {
+        responsive:true,
+        plugins:{ legend:{ labels:{ color:textColor } } },
+        scales:{
+          x:{ ticks:{ color:mutedColor }, grid:{ color:"rgba(128,128,128,.15)" } },
+          y:{ beginAtZero:true, ticks:{ color:mutedColor, precision:0 }, grid:{ color:"rgba(128,128,128,.15)" } }
+        }
+      }
+    });
+  }
+  function renderDashPriorityDonut(){
+    const box = document.getElementById("dashPriorityDonut");
+    const counts = { HIGH:0, MEDIUM:0, LOW:0 };
+    allTasks.forEach(function(t){ if(counts[t.priority]!==undefined) counts[t.priority]++; });
+    const total = counts.HIGH + counts.MEDIUM + counts.LOW;
+    if(!total){ box.innerHTML = '<div class="muted">No tasks yet.</div>'; return; }
+    const lowPct = counts.LOW/total*100, medPct = counts.MEDIUM/total*100;
+    const g = "conic-gradient(var(--green) 0 "+lowPct+"%, var(--amber) "+lowPct+"% "+(lowPct+medPct)+"%, var(--red) "+(lowPct+medPct)+"% 100%)";
+    box.innerHTML =
+      '<div class="row" style="align-items:center;gap:20px;flex-wrap:nowrap">'+
+        '<div style="position:relative;width:110px;height:110px;flex-shrink:0">'+
+          '<div class="donut" style="width:110px;height:110px;background:'+g+'"></div>'+
+          '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:62px;height:62px;border-radius:50%;'+
+            'background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700">'+total+'</div>'+
+        '</div>'+
+        '<div>'+
+          '<div class="donutlegend"><span class="dot" style="background:var(--green)"></span>Low <b style="margin-left:4px">'+counts.LOW+'</b></div>'+
+          '<div class="donutlegend"><span class="dot" style="background:var(--amber)"></span>Medium <b style="margin-left:4px">'+counts.MEDIUM+'</b></div>'+
+          '<div class="donutlegend"><span class="dot" style="background:var(--red)"></span>High <b style="margin-left:4px">'+counts.HIGH+'</b></div>'+
+        '</div>'+
+      '</div>';
+  }
+  function ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function dashCalPrev(){ dashCalMonth.setMonth(dashCalMonth.getMonth()-1); renderDashCalStrip(); }
+  function dashCalNext(){ dashCalMonth.setMonth(dashCalMonth.getMonth()+1); renderDashCalStrip(); }
+  function renderDashCalStrip(){
+    const label = document.getElementById("dashCalLabel");
+    const strip = document.getElementById("dashCalStrip");
+    if(!label || !strip) return;
+    const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const dowNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const year = dashCalMonth.getFullYear(), month = dashCalMonth.getMonth();
+    label.textContent = monthNames[month] + " " + year;
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    const today = todayStr();
+    const dueDates = {};
+    allTasks.forEach(function(t){ if(t.dueDate && t.status!=="DONE") dueDates[t.dueDate] = true; });
+    let html = "";
+    for(let d=1; d<=daysInMonth; d++){
+      const dateObj = new Date(year, month, d);
+      const iso = ymd(dateObj);
+      const isToday = iso===today;
+      html += '<div class="dashdaycell'+(isToday?' today':'')+'">'+
+        '<div class="dow">'+dowNames[dateObj.getDay()]+'</div>'+
+        '<div class="dnum">'+String(d).padStart(2,"0")+'</div>'+
+        (dueDates[iso] ? '<div class="ddot"></div>' : '')+
+      '</div>';
+    }
+    strip.innerHTML = html;
+  }
+  function renderDashTeamIncomplete(){
+    const box = document.getElementById("dashTeamIncomplete");
+    if(!box) return;
+    if(!allUsers.length){ box.innerHTML = '<div class="muted">No team members yet.</div>'; return; }
+    const counts = {};
+    allTasks.forEach(function(t){
+      if(t.status==="DONE" || !t.assignee || !t.assignee.email) return;
+      counts[t.assignee.email] = (counts[t.assignee.email]||0) + 1;
+    });
+    const rows = allUsers.map(function(u){ return { u: u, n: counts[u.email]||0 }; })
+      .filter(function(r){ return r.n>0; })
+      .sort(function(a,b){ return b.n-a.n; })
+      .slice(0,8);
+    if(!rows.length){ box.innerHTML = '<div class="muted">Nobody has incomplete tasks. All caught up.</div>'; return; }
+    box.innerHTML = rows.map(function(r){
+      return '<div class="dashteamrow">'+
+        '<span class="avatar">'+esc(initialsOf(r.u.name))+'</span>'+
+        '<span class="name">'+esc(r.u.name)+'</span>'+
+        '<span class="cnt">'+r.n+'</span>'+
+      '</div>';
+    }).join("");
   }
 
   /* ===================== Projects (dedicated tab) ===================== */
