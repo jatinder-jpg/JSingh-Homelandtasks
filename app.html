@@ -862,7 +862,7 @@
     </div>
     <label>Or assign to a department/group (optional)</label>
     <input id="taskDepartment" placeholder="e.g. Structural Engineering" style="width:100%" oninput="saveTaskDraft()">
-    <p class="muted" style="font-size:11px;margin-top:2px">Everyone can already see every task. Setting a group here just labels who it's for - use Reassign process afterwards to pick a specific point of contact.</p>
+    <p class="muted" style="font-size:11px;margin-top:2px">Admins see every task. Members see tasks assigned to them, tasks assigned to their team, and tasks they created. Setting a group here just labels who it's for - use Reassign process afterwards to pick a specific point of contact.</p>
     <button style="margin-top:12px" onclick="addTask()">Add task</button>
     <p id="taskMsg"></p>
   </div>
@@ -1193,6 +1193,7 @@
         '<div><b>'+esc(u.name)+'</b><br><span class="muted" style="font-size:12px">'+esc(u.email)+'</span></div>'+
         '</div><div class="row" style="align-items:center;gap:8px">'+
         '<span class="pill '+(u.role==="ADMIN"?"HIGH":"LOW")+'">'+esc(roleLabel(u))+'</span>'+
+        (canManage && !isSuperAdmin ? '<button class="ghost" style="font-size:12px" title="Toggle Admin/Member" onclick="setUserRole('+u.id+',\''+(u.role==="ADMIN"?"MEMBER":"ADMIN")+'\')">Make '+(u.role==="ADMIN"?"Member":"Admin")+'</button>' : '')+
         (canManage ? '<select style="font-size:12px" title="Reporting manager" onchange="setUserManager('+u.id+',this.value)">'+managerOptions+'</select>' :
           (u.managerEmail ? '<span class="muted" style="font-size:12px">Reports to '+esc(u.managerEmail)+'</span>' : ''))+
         (canManage ? '<input value="'+esc(u.department||"")+'" placeholder="Department" title="Department" style="font-size:12px;width:110px" onchange="setUserDepartment('+u.id+',this.value)">' :
@@ -1200,6 +1201,12 @@
         (canDelete ? '<button class="ghost" style="color:var(--red);border-color:var(--red)" onclick="deleteUser('+u.id+',\''+esc(u.name).replace(/'/g,"\\'")+'\')">Delete</button>' : '')+
         '</div></div>';
     }).join("") || '<div class="muted">No users yet.</div>';
+  }
+  async function setUserRole(id, role){
+    try{
+      await api("/api/users/"+id, { method:"PATCH", body: JSON.stringify({ role: role }) });
+      await loadUsers(); await loadUsersTab();
+    }catch(e){ alert(e.message); }
   }
   async function setUserManager(id, managerEmail){
     try{
