@@ -849,6 +849,68 @@
           <div id="gcalSyncLog" style="margin-top:10px;font-size:12px;color:var(--muted);max-height:80px;overflow-y:auto"></div>
         </div>
       </div>
+      <!-- Gmail Notifications Card -->
+      <div class="card" id="gmailCard">
+        <h2>Gmail Notifications — New Tasks</h2>
+        <div class="between" style="margin-bottom:10px">
+          <p class="muted" style="margin:0">Send an email to the assignee whenever a new task is created.</p>
+          <span class="pill" id="gmailStatusPill">Not connected</span>
+        </div>
+
+        <!-- Step 1: Not connected -->
+        <div id="gmailSetupSection">
+          <p class="muted" style="font-size:12px;margin:0 0 10px">
+            Uses the same Google OAuth Client ID &amp; Secret as Calendar. One-time setup per browser.
+          </p>
+          <div class="row" style="align-items:flex-end;gap:8px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <label>Google OAuth Client ID</label>
+              <input id="gmailClientId" style="width:100%" placeholder="xxxx.apps.googleusercontent.com">
+            </div>
+            <div style="flex:1;min-width:200px">
+              <label>Google OAuth Client Secret</label>
+              <input id="gmailClientSecret" style="width:100%" type="password" placeholder="GOCSPX-...">
+            </div>
+            <button onclick="gmailStartAuth()">Connect Gmail</button>
+          </div>
+          <p id="gmailSetupMsg" class="muted" style="font-size:12px;margin-top:8px"></p>
+        </div>
+
+        <!-- Step 2: Auth URL -->
+        <div id="gmailAuthSection" class="hidden">
+          <div class="note" style="margin-bottom:10px">
+            <b>Step 2 of 2 — Authorize Gmail</b><br>
+            <span class="muted">Click the link, sign in with Google, then paste the full redirect URL below.</span>
+          </div>
+          <p style="margin:0 0 8px"><a id="gmailAuthLink" href="#" target="_blank" style="word-break:break-all">Open Google authorization page ↗</a></p>
+          <label>Paste the full redirect URL here after approving:</label>
+          <div class="row" style="gap:8px">
+            <input id="gmailRedirectUrl" style="flex:1" placeholder="http://localhost:1/?code=4/0A...">
+            <button onclick="gmailExchangeCode()">Complete Setup</button>
+          </div>
+          <p id="gmailAuthMsg" style="font-size:13px;margin-top:6px"></p>
+        </div>
+
+        <!-- Step 3: Connected -->
+        <div id="gmailConnectedSection" class="hidden">
+          <div class="row" style="align-items:center;gap:12px;margin-bottom:10px">
+            <span class="ok" style="font-size:14px;margin:0">✅ Connected</span>
+            <span id="gmailAccountLabel" class="muted" style="font-size:12px"></span>
+            <div class="row" style="margin-left:auto;align-items:center;gap:8px">
+              <label style="margin:0;font-size:12px;color:var(--muted)">Notify assignee on new task</label>
+              <input type="checkbox" id="gmailNotifyToggle" checked onchange="gmailSavePrefs()" style="width:16px;height:16px;cursor:pointer">
+            </div>
+            <button class="ghost" style="color:var(--red);border-color:var(--red)" onclick="gmailDisconnect()">Disconnect</button>
+          </div>
+          <div style="font-size:12px;color:var(--muted)">
+            ✔ New task created → assignee gets an email with task details, priority &amp; due date<br>
+            ✔ Emails sent from your Gmail account (jatinder@homelandgroup.org)<br>
+            ✔ Toggle the checkbox above to enable/disable notifications anytime
+          </div>
+          <div id="gmailSendLog" style="margin-top:10px;font-size:12px;color:var(--muted);max-height:80px;overflow-y:auto"></div>
+        </div>
+      </div>
+
       <div id="escSettingsCard" class="card hidden">
         <h2>Escalation timelines</h2>
         <p class="muted" style="margin-top:0">How long before people get a reminder pop-up. Applies workspace-wide.</p>
@@ -3155,6 +3217,302 @@
 
   // Init on load
   gcalInit();
+
+  /* =====================================================================
+     GMAIL INTEGRATION — New Task Notifications
+     - Separate OAuth2 flow (gmail.send scope)
+     - Sends a rich HTML email to the assignee on every new task
+     - Toggle on/off via Settings checkbox
+     ===================================================================== */
+
+  var GMAIL_KEYS = {
+    clientId:     "gmail_client_id",
+    clientSecret: "gmail_client_secret",
+    accessToken:  "gmail_access_token",
+    refreshToken: "gmail_refresh_token",
+    expiry:       "gmail_token_expiry",
+    notify:       "gmail_notify_enabled",
+    email:        "gmail_sender_email"
+  };
+
+  var GMAIL_SCOPE    = "https://www.googleapis.com/auth/gmail.send";
+  var GMAIL_REDIRECT = "http://localhost:1";
+
+  /* ---- Helpers ---- */
+  function gmailGet(k){ return localStorage.getItem(k); }
+  function gmailSet(k,v){ localStorage.setItem(k,v); }
+  function gmailDel(k){ localStorage.removeItem(k); }
+
+  function gmailIsConnected(){
+    return !!(gmailGet(GMAIL_KEYS.accessToken) && gmailGet(GMAIL_KEYS.clientId));
+  }
+
+  function gmailNotifyEnabled(){
+    var v = gmailGet(GMAIL_KEYS.notify);
+    return v === null ? true : v === "true";
+  }
+
+  function gmailSavePrefs(){
+    var chk = document.getElementById("gmailNotifyToggle");
+    if(chk) gmailSet(GMAIL_KEYS.notify, chk.checked ? "true" : "false");
+  }
+
+  function gmailLog(msg){
+    var box = document.getElementById("gmailSendLog");
+    if(!box) return;
+    var ts = new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    box.innerHTML = '<div>['+ts+'] '+msg+'</div>' + box.innerHTML;
+  }
+
+  /* ---- Token refresh ---- */
+  async function gmailEnsureToken(){
+    var expiry = Number(gmailGet(GMAIL_KEYS.expiry)||0);
+    if(Date.now() < expiry - 60000) return gmailGet(GMAIL_KEYS.accessToken);
+    var r = await fetch("https://oauth2.googleapis.com/token", {
+      method:"POST",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body: new URLSearchParams({
+        grant_type:    "refresh_token",
+        client_id:     gmailGet(GMAIL_KEYS.clientId),
+        client_secret: gmailGet(GMAIL_KEYS.clientSecret),
+        refresh_token: gmailGet(GMAIL_KEYS.refreshToken)
+      })
+    });
+    var data = await r.json();
+    if(!data.access_token) throw new Error("Gmail token refresh failed: "+(data.error_description||data.error||"unknown"));
+    gmailSet(GMAIL_KEYS.accessToken, data.access_token);
+    gmailSet(GMAIL_KEYS.expiry, String(Date.now() + (data.expires_in||3600)*1000));
+    return data.access_token;
+  }
+
+  /* ---- Build RFC2822 email, base64url encoded ---- */
+  function gmailBuildEmail(to, toName, task, senderEmail){
+    var PRIO_COLOR = {HIGH:"#f0616a", MEDIUM:"#f2a516", LOW:"#34c274"};
+    var prioColor  = PRIO_COLOR[task.priority] || "#98a1b8";
+    var prioEmoji  = {HIGH:"🔴", MEDIUM:"🟡", LOW:"🟢"}[task.priority] || "📌";
+    var dueStr     = task.dueDate || "No due date";
+    var project    = (task.project && task.project.name) ? task.project.name : "—";
+    var dept       = task.assignedDepartment ? ("<b>Department:</b> " + task.assignedDepartment + "<br>") : "";
+    var desc       = task.description ? ("<p style='color:#666;margin:12px 0'>" + task.description + "</p>") : "";
+
+    var html = [
+      '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f4f4;font-family:system-ui,sans-serif">',
+      '<div style="max-width:560px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">',
+        '<div style="background:#0c1220;padding:24px 28px">',
+          '<span style="font-size:20px;font-weight:700;color:#c9a250;letter-spacing:.1em">🏠 HOMELAND TASKS</span>',
+        '</div>',
+        '<div style="padding:28px">',
+          '<h2 style="margin:0 0 4px;font-size:18px;color:#111">New Task Assigned to You</h2>',
+          '<p style="color:#666;margin:0 0 20px;font-size:14px">You have been assigned a new task in Homeland Tasks.</p>',
+          '<div style="background:#f8f8f8;border-left:4px solid '+prioColor+';border-radius:8px;padding:16px 20px;margin-bottom:20px">',
+            '<div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px">'+prioEmoji+' '+task.title+'</div>',
+            desc,
+            '<table style="font-size:13px;color:#444;border-collapse:collapse;width:100%">',
+              '<tr><td style="padding:3px 12px 3px 0"><b>Priority:</b></td><td style="color:'+prioColor+';font-weight:600">'+task.priority+'</td></tr>',
+              '<tr><td style="padding:3px 12px 3px 0"><b>Due Date:</b></td><td>'+dueStr+'</td></tr>',
+              '<tr><td style="padding:3px 12px 3px 0"><b>Project:</b></td><td>'+project+'</td></tr>',
+              (dept ? '<tr><td style="padding:3px 12px 3px 0">'+dept+'</td></tr>' : ''),
+              '<tr><td style="padding:3px 12px 3px 0"><b>Status:</b></td><td>'+task.status+'</td></tr>',
+            '</table>',
+          '</div>',
+          '<a href="https://j-singh-homelandtasks.vercel.app" style="display:inline-block;background:#c9a250;color:#1a1205;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">Open Homeland Tasks ↗</a>',
+          '<p style="color:#aaa;font-size:12px;margin-top:24px">This notification was sent automatically by Homeland Tasks. Log in to view or update this task.</p>',
+        '</div>',
+      '</div>',
+      '</body></html>'
+    ].join("");
+
+    var plain = "New Task: " + task.title + "\nPriority: " + task.priority +
+      "\nDue: " + dueStr + "\nProject: " + project +
+      "\n\nOpen: https://j-singh-homelandtasks.vercel.app";
+
+    var boundary = "----=_Part_" + Math.random().toString(36).slice(2);
+    var raw = [
+      "From: Homeland Tasks <" + senderEmail + ">",
+      "To: " + (toName ? toName + " <" + to + ">" : to),
+      "Subject: =?UTF-8?B?" + btoa(unescape(encodeURIComponent("📋 New Task: " + task.title))) + "?=",
+      "MIME-Version: 1.0",
+      'Content-Type: multipart/alternative; boundary="' + boundary + '"',
+      "",
+      "--" + boundary,
+      "Content-Type: text/plain; charset=UTF-8",
+      "",
+      plain,
+      "",
+      "--" + boundary,
+      "Content-Type: text/html; charset=UTF-8",
+      "",
+      html,
+      "",
+      "--" + boundary + "--"
+    ].join("\r\n");
+
+    // base64url encode
+    return btoa(unescape(encodeURIComponent(raw)))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  /* ---- Send email via Gmail API ---- */
+  async function gmailSendTaskNotification(task){
+    if(!gmailIsConnected() || !gmailNotifyEnabled()) return;
+    if(!task.assignee || !task.assignee.email){
+      gmailLog("ℹ️ No assignee email — skipping notification for: " + task.title);
+      return;
+    }
+
+    try{
+      var token    = await gmailEnsureToken();
+      var sender   = gmailGet(GMAIL_KEYS.email) || MY_EMAIL;
+      var encoded  = gmailBuildEmail(task.assignee.email, task.assignee.name, task, sender);
+
+      var r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+        method:"POST",
+        headers:{
+          "Authorization": "Bearer " + token,
+          "Content-Type":  "application/json"
+        },
+        body: JSON.stringify({ raw: encoded })
+      });
+
+      var data = await r.json();
+      if(!r.ok) throw new Error(data.error && data.error.message || r.status);
+
+      gmailLog("📧 Email sent to " + task.assignee.email + " for: " + task.title);
+    }catch(e){
+      gmailLog("⚠️ Email failed: " + e.message);
+    }
+  }
+
+  /* ---- OAuth Setup flow ---- */
+  function gmailStartAuth(){
+    var clientId     = document.getElementById("gmailClientId").value.trim();
+    var clientSecret = document.getElementById("gmailClientSecret").value.trim();
+    var msg          = document.getElementById("gmailSetupMsg");
+
+    if(!clientId || !clientSecret){
+      // Auto-fill from Calendar if already connected
+      clientId     = clientId     || gmailGet("gcal_client_id")     || "";
+      clientSecret = clientSecret || gmailGet("gcal_client_secret") || "";
+      if(!clientId){
+        msg.className="err"; msg.textContent="Enter Client ID and Secret (same as Calendar)."; return;
+      }
+      document.getElementById("gmailClientId").value     = clientId;
+      document.getElementById("gmailClientSecret").value = clientSecret;
+    }
+
+    gmailSet(GMAIL_KEYS.clientId,     clientId);
+    gmailSet(GMAIL_KEYS.clientSecret, clientSecret);
+
+    var params = new URLSearchParams({
+      client_id:     clientId,
+      redirect_uri:  GMAIL_REDIRECT,
+      response_type: "code",
+      scope:         GMAIL_SCOPE,
+      access_type:   "offline",
+      prompt:        "consent"
+    });
+
+    document.getElementById("gmailAuthLink").href = "https://accounts.google.com/o/oauth2/v2/auth?" + params.toString();
+    document.getElementById("gmailSetupSection").classList.add("hidden");
+    document.getElementById("gmailAuthSection").classList.remove("hidden");
+    msg.textContent = "";
+  }
+
+  async function gmailExchangeCode(){
+    var raw = document.getElementById("gmailRedirectUrl").value.trim();
+    var msg = document.getElementById("gmailAuthMsg");
+    msg.className="ok"; msg.textContent="Exchanging code...";
+
+    var code = raw;
+    try{
+      var url = new URL(raw.indexOf("://")>-1 ? raw : "http://x/?"+raw);
+      code = url.searchParams.get("code") || raw;
+    }catch(e){}
+
+    try{
+      var r = await fetch("https://oauth2.googleapis.com/token", {
+        method:"POST",
+        headers:{"Content-Type":"application/x-www-form-urlencoded"},
+        body: new URLSearchParams({
+          code:          code,
+          client_id:     gmailGet(GMAIL_KEYS.clientId),
+          client_secret: gmailGet(GMAIL_KEYS.clientSecret),
+          redirect_uri:  GMAIL_REDIRECT,
+          grant_type:    "authorization_code"
+        })
+      });
+      var data = await r.json();
+      if(!data.access_token) throw new Error(data.error_description||data.error||"Token exchange failed");
+
+      gmailSet(GMAIL_KEYS.accessToken,  data.access_token);
+      gmailSet(GMAIL_KEYS.refreshToken, data.refresh_token||"");
+      gmailSet(GMAIL_KEYS.expiry, String(Date.now()+(data.expires_in||3600)*1000));
+
+      // Get sender email
+      try{
+        var me = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+          headers:{"Authorization":"Bearer "+data.access_token}
+        });
+        var meData = await me.json();
+        gmailSet(GMAIL_KEYS.email, meData.email||"");
+      }catch(e){}
+
+      gmailShowConnected();
+      msg.className="ok"; msg.textContent="✅ Gmail connected!";
+    }catch(e){
+      msg.className="err"; msg.textContent = "❌ " + e.message;
+    }
+  }
+
+  function gmailShowConnected(){
+    document.getElementById("gmailSetupSection").classList.add("hidden");
+    document.getElementById("gmailAuthSection").classList.add("hidden");
+    document.getElementById("gmailConnectedSection").classList.remove("hidden");
+    var pill = document.getElementById("gmailStatusPill");
+    pill.textContent = "✅ Connected";
+    pill.style.color = "var(--green)";
+    pill.style.borderColor = "var(--green)";
+    var email = gmailGet(GMAIL_KEYS.email)||"";
+    if(email) document.getElementById("gmailAccountLabel").textContent = email;
+    var chk = document.getElementById("gmailNotifyToggle");
+    if(chk) chk.checked = gmailNotifyEnabled();
+  }
+
+  function gmailDisconnect(){
+    if(!confirm("Disconnect Gmail notifications?")) return;
+    [GMAIL_KEYS.clientId, GMAIL_KEYS.clientSecret, GMAIL_KEYS.accessToken,
+     GMAIL_KEYS.refreshToken, GMAIL_KEYS.expiry, GMAIL_KEYS.email].forEach(gmailDel);
+    document.getElementById("gmailConnectedSection").classList.add("hidden");
+    document.getElementById("gmailSetupSection").classList.remove("hidden");
+    var pill = document.getElementById("gmailStatusPill");
+    pill.textContent = "Not connected";
+    pill.style.color = "";
+    pill.style.borderColor = "";
+  }
+
+  function gmailInit(){
+    if(gmailIsConnected()) gmailShowConnected();
+    // Auto-fill Client ID/Secret from Calendar if available
+    var savedId  = gmailGet("gcal_client_id")  || "";
+    var savedSec = gmailGet("gcal_client_secret") || "";
+    var idEl  = document.getElementById("gmailClientId");
+    var secEl = document.getElementById("gmailClientSecret");
+    if(idEl  && !idEl.value  && savedId)  idEl.value  = savedId;
+    if(secEl && !secEl.value && savedSec) secEl.value = savedSec;
+  }
+
+  /* ---- Extend addTask wrapper to also send Gmail ---- */
+  var _origAddTaskWithGmail = addTask;
+  addTask = async function(){
+    await _origAddTaskWithGmail.apply(this, arguments);
+    if(gmailIsConnected() && gmailNotifyEnabled() && allTasks.length){
+      var newest = allTasks.slice().sort(function(a,b){ return (b.id||0)-(a.id||0); })[0];
+      if(newest) gmailSendTaskNotification(newest);
+    }
+  };
+
+  gmailInit();
+
 
 </script>
 </body>
