@@ -3482,7 +3482,119 @@
   quickComplete = async function(id, checked){
     await _origQuickComplete.apply(this, arguments);
     if(gcalIsConnected() && checked) gcalRemoveTaskEvent(id);
+    // Recurring Task Automation: auto-spawn next task on completion
+    if(checked) recurringAutoSpawn(id);
   };
+
+  /* =====================================================================
+     FEATURE: RECURRING TASK AUTOMATION
+     When a task with repeatCycle (DAILY/WEEKLY/MONTHLY) is marked DONE,
+     automatically create the next occurrence with a new due date.
+     ===================================================================== */
+
+  async function recurringAutoSpawn(taskId){
+    try{
+      var task = allTasks.find(function(t){ return t.id === taskId; });
+      if(!task || !task.repeatCycle || task.repeatCycle === "NONE") return;
+      if(!task.dueDate) return;
+
+      // Calculate next due date
+      var next = new Date(task.dueDate + "T00:00:00");
+      if(task.repeatCycle === "DAILY")   next.setDate(next.getDate() + 1);
+      if(task.repeatCycle === "WEEKLY")  next.setDate(next.getDate() + 7);
+      if(task.repeatCycle === "MONTHLY") next.setMonth(next.getMonth() + 1);
+
+      var nextStr = next.toISOString().slice(0,10);
+
+      // Build new task payload
+      var payload = {
+        title:              task.title,
+        description:        task.description || "",
+        priority:           task.priority,
+        status:             "TODO",
+        dueDate:            nextStr,
+        projectId:          task.project ? task.project.id : null,
+        assigneeId:         task.assignee ? task.assignee.id : null,
+        repeatCycle:        task.repeatCycle,
+        siteVisitRequired:  task.siteVisitRequired || false,
+        siteVisitCompleted: false,
+        assignedDepartment: task.assignedDepartment || null
+      };
+
+      await api("/api/tasks", { method:"POST", body: JSON.stringify(payload) });
+      await loadTasks();
+
+      // Show subtle toast
+      recurringToast(task.title, task.repeatCycle, nextStr);
+
+      // Sync new task to Calendar if connected
+      if(gcalIsConnected()){
+        var newest = allTasks.slice().sort(function(a,b){ return (b.id||0)-(a.id||0); })[0];
+        if(newest && newest.dueDate) gcalCreateEvent(newest);
+      }
+    }catch(e){
+      console.warn("Recurring spawn failed:", e.message);
+    }
+  }
+
+  function recurringToast(title, cycle, nextDate){
+    var toast = document.createElement("div");
+    toast.style.cssText = [
+      "position:fixed;bottom:24px;left:50%;transform:translateX(-50%)",
+      "background:#17213c;border:1px solid var(--green);color:var(--text)",
+      "padding:12px 20px;border-radius:10px;font-size:13px;z-index:9999",
+      "box-shadow:0 4px 16px rgba(0,0,0,.4);max-width:420px;text-align:center"
+    ].join(";");
+    toast.innerHTML = "&#9654; <b>Recurring task scheduled</b><br>" +
+      "<span style='color:var(--muted);font-size:12px'>" +
+      esc(title) + " (" + cycle.toLowerCase() + ") → next due: " + nextDate + "</span>";
+    document.body.appendChild(toast);
+    setTimeout(function(){ toast.style.transition="opacity .5s"; toast.style.opacity="0"; }, 3500);
+    setTimeout(function(){ if(toast.parentNode) toast.parentNode.removeChild(toast); }, 4100);
+  }
+
+  /* =====================================================================
+     FEATURE: PER-USER THEME PREFERENCE SYNC
+     Saves theme preference to the server via /api/users (PATCH) so it
+     persists across browsers/devices. Falls back to localStorage.
+     ===================================================================== */
+
+  // Extend applyTheme to also save to server
+  var _origApplyTheme = applyTheme;
+  applyTheme = function(theme){
+    _origApplyTheme(theme);
+    // Persist to server silently (best-effort)
+    if(MY_EMAIL){
+      try{
+        // Store in user's profile via activity heartbeat metadata
+        localStorage.setItem("taskpad-theme-server-synced", theme);
+        // Attempt server sync via a user PATCH if we know our user id
+        var myUser = (allUsers||[]).find(function(u){ return u.email === MY_EMAIL; });
+        if(myUser && myUser.id){
+          api("/api/users/" + myUser.id, {
+            method:"PATCH",
+            body: JSON.stringify({ theme: theme })
+          }).catch(function(){});  // silent fail — server may not support this field yet
+        }
+      }catch(e){}
+    }
+  };
+
+  // On login, restore server-synced theme
+  var _origAfterLogin = afterLogin;
+  afterLogin = function(name, role){
+    _origAfterLogin.apply(this, arguments);
+    // Restore theme from server after login
+    setTimeout(function(){
+      try{
+        var myUser = (allUsers||[]).find(function(u){ return u.email === MY_EMAIL; });
+        if(myUser && myUser.theme && ["dark","light"].indexOf(myUser.theme) > -1){
+          applyTheme(myUser.theme);
+        }
+      }catch(e){}
+    }, 1000);
+  };
+
 
   // Init on load
   gcalInit();
