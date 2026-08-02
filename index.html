@@ -3285,71 +3285,82 @@
     return data.access_token;
   }
 
+  /* ---- Safe base64url encoder (handles emoji + unicode) ---- */
+  function gmailBase64Url(str){
+    var bytes = new TextEncoder().encode(str);
+    var binary = "";
+    bytes.forEach(function(b){ binary += String.fromCharCode(b); });
+    return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  }
+
   /* ---- Build RFC2822 email, base64url encoded ---- */
   function gmailBuildEmail(to, toName, task, senderEmail){
     var PRIO_COLOR = {HIGH:"#f0616a", MEDIUM:"#f2a516", LOW:"#34c274"};
     var prioColor  = PRIO_COLOR[task.priority] || "#98a1b8";
-    var prioEmoji  = {HIGH:"🔴", MEDIUM:"🟡", LOW:"🟢"}[task.priority] || "📌";
+    var prioLabel  = {HIGH:"HIGH PRIORITY", MEDIUM:"MEDIUM PRIORITY", LOW:"LOW PRIORITY"}[task.priority] || task.priority;
     var dueStr     = task.dueDate || "No due date";
-    var project    = (task.project && task.project.name) ? task.project.name : "—";
-    var dept       = task.assignedDepartment ? ("<b>Department:</b> " + task.assignedDepartment + "<br>") : "";
-    var desc       = task.description ? ("<p style='color:#666;margin:12px 0'>" + task.description + "</p>") : "";
+    var project    = (task.project && task.project.name) ? task.project.name : "-";
+    var dept       = task.assignedDepartment ? ("<tr><td style='padding:3px 12px 3px 0'><b>Department:</b></td><td>"+task.assignedDepartment+"</td></tr>") : "";
+    var desc       = task.description ? ("<p style='color:#666;margin:12px 0;font-size:14px'>"+task.description+"</p>") : "";
 
     var html = [
       '<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f4f4;font-family:system-ui,sans-serif">',
       '<div style="max-width:560px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">',
         '<div style="background:#0c1220;padding:24px 28px">',
-          '<span style="font-size:20px;font-weight:700;color:#c9a250;letter-spacing:.1em">🏠 HOMELAND TASKS</span>',
+          '<span style="font-size:20px;font-weight:700;color:#c9a250;letter-spacing:.1em">HOMELAND TASKS</span>',
         '</div>',
         '<div style="padding:28px">',
           '<h2 style="margin:0 0 4px;font-size:18px;color:#111">New Task Assigned to You</h2>',
           '<p style="color:#666;margin:0 0 20px;font-size:14px">You have been assigned a new task in Homeland Tasks.</p>',
           '<div style="background:#f8f8f8;border-left:4px solid '+prioColor+';border-radius:8px;padding:16px 20px;margin-bottom:20px">',
-            '<div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px">'+prioEmoji+' '+task.title+'</div>',
+            '<div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px">'+task.title+'</div>',
             desc,
             '<table style="font-size:13px;color:#444;border-collapse:collapse;width:100%">',
-              '<tr><td style="padding:3px 12px 3px 0"><b>Priority:</b></td><td style="color:'+prioColor+';font-weight:600">'+task.priority+'</td></tr>',
+              '<tr><td style="padding:3px 12px 3px 0"><b>Priority:</b></td><td style="color:'+prioColor+';font-weight:700">'+prioLabel+'</td></tr>',
               '<tr><td style="padding:3px 12px 3px 0"><b>Due Date:</b></td><td>'+dueStr+'</td></tr>',
               '<tr><td style="padding:3px 12px 3px 0"><b>Project:</b></td><td>'+project+'</td></tr>',
-              (dept ? '<tr><td style="padding:3px 12px 3px 0">'+dept+'</td></tr>' : ''),
+              dept,
               '<tr><td style="padding:3px 12px 3px 0"><b>Status:</b></td><td>'+task.status+'</td></tr>',
             '</table>',
           '</div>',
-          '<a href="https://j-singh-homelandtasks.vercel.app" style="display:inline-block;background:#c9a250;color:#1a1205;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">Open Homeland Tasks ↗</a>',
-          '<p style="color:#aaa;font-size:12px;margin-top:24px">This notification was sent automatically by Homeland Tasks. Log in to view or update this task.</p>',
+          '<a href="https://j-singh-homelandtasks.vercel.app" style="display:inline-block;background:#c9a250;color:#1a1205;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">Open Homeland Tasks</a>',
+          '<p style="color:#aaa;font-size:12px;margin-top:24px">This notification was sent automatically by Homeland Tasks.</p>',
         '</div>',
       '</div>',
       '</body></html>'
     ].join("");
 
-    var plain = "New Task: " + task.title + "\nPriority: " + task.priority +
-      "\nDue: " + dueStr + "\nProject: " + project +
+    var plain = "New Task: " + task.title +
+      "\nPriority: " + task.priority +
+      "\nDue: " + dueStr +
+      "\nProject: " + project +
       "\n\nOpen: https://j-singh-homelandtasks.vercel.app";
 
-    var boundary = "----=_Part_" + Math.random().toString(36).slice(2);
+    var boundary = "----HLBoundary" + Math.random().toString(36).slice(2);
+    var subjectB64 = btoa(unescape(encodeURIComponent("New Task: " + task.title)));
     var raw = [
       "From: Homeland Tasks <" + senderEmail + ">",
       "To: " + (toName ? toName + " <" + to + ">" : to),
-      "Subject: =?UTF-8?B?" + btoa(unescape(encodeURIComponent("📋 New Task: " + task.title))) + "?=",
+      "Subject: =?UTF-8?B?" + subjectB64 + "?=",
       "MIME-Version: 1.0",
       'Content-Type: multipart/alternative; boundary="' + boundary + '"',
       "",
       "--" + boundary,
       "Content-Type: text/plain; charset=UTF-8",
+      "Content-Transfer-Encoding: quoted-printable",
       "",
       plain,
       "",
       "--" + boundary,
       "Content-Type: text/html; charset=UTF-8",
+      "Content-Transfer-Encoding: quoted-printable",
       "",
       html,
       "",
       "--" + boundary + "--"
     ].join("\r\n");
 
-    // base64url encode
-    return btoa(unescape(encodeURIComponent(raw)))
-      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    return gmailBase64Url(raw);
   }
 
   /* ---- Send email via Gmail API ---- */
@@ -3506,8 +3517,17 @@
   addTask = async function(){
     await _origAddTaskWithGmail.apply(this, arguments);
     if(gmailIsConnected() && gmailNotifyEnabled() && allTasks.length){
+      // Get the newest task — sorted by id descending
       var newest = allTasks.slice().sort(function(a,b){ return (b.id||0)-(a.id||0); })[0];
-      if(newest) gmailSendTaskNotification(newest);
+      if(newest){
+        // Fetch full task details including assignee from the API
+        try{
+          var full = await api("/api/tasks/" + newest.id);
+          gmailSendTaskNotification(full || newest);
+        }catch(e){
+          gmailSendTaskNotification(newest);
+        }
+      }
     }
   };
 
