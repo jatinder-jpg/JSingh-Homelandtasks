@@ -263,6 +263,57 @@
   .dashteamrow .cnt{background:var(--border);color:var(--text);border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600}
   .donutlegend{display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:8px}
   .donutlegend .dot{width:10px;height:10px;border-radius:999px;flex-shrink:0}
+
+  /* ---- Feature 1: Bulk Actions ---- */
+  .bulk-toolbar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--blue);border-radius:12px;padding:10px 18px;display:flex;align-items:center;gap:10px;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,.5);min-width:360px}
+  .bulk-toolbar .sel-count{font-weight:600;color:var(--text);flex:1}
+  .tbl .row-cb{width:18px;cursor:pointer;accent-color:var(--blue)}
+  .tbl td.cb-cell{width:32px;padding-left:10px}
+
+  /* ---- Feature 2: To-Do List ---- */
+  .todo-input-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap}
+  .todo-group-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:16px 0 6px}
+  .todo-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
+  .todo-item input[type=checkbox]{accent-color:var(--green);width:16px;height:16px;flex-shrink:0}
+  .todo-item .todo-text{flex:1;font-size:14px}
+  .todo-item .todo-text.done{text-decoration:line-through;color:var(--muted)}
+  .todo-item .todo-meta{font-size:11px;color:var(--muted)}
+  .todo-pri.HIGH{color:var(--red)} .todo-pri.MEDIUM{color:var(--amber)} .todo-pri.LOW{color:var(--green)}
+
+  /* ---- Feature 3: Task Planner (Weekly View) ---- */
+  .planner-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .planner-week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;overflow-x:auto}
+  .planner-day{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;min-height:200px}
+  .planner-day.today{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue) inset}
+  .planner-day-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px}
+  .planner-day-date{font-size:15px;font-weight:700;margin-bottom:8px}
+  .planner-task{font-size:12px;padding:4px 7px;border-radius:6px;background:#1d2748;margin-bottom:4px;cursor:pointer;border-left:3px solid var(--blue)}
+  .planner-task:hover{background:#243060}
+  .planner-task.HIGH{border-left-color:var(--red)} .planner-task.MEDIUM{border-left-color:var(--amber)} .planner-task.LOW{border-left-color:var(--green)}
+
+  /* ---- Feature 4: Task Tags ---- */
+  .tag-pill{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;margin-right:3px;margin-top:2px;font-weight:500}
+
+  /* ---- Feature 5: Workflow Automation ---- */
+  .workflow-item{border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px}
+  .workflow-item .wf-title{font-weight:600;margin-bottom:4px}
+  .workflow-item .wf-meta{font-size:12px;color:var(--muted)}
+  .workflow-form{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px}
+
+  /* ---- Feature 6: Activity Log ---- */
+  .activity-entry{font-size:12px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border)}
+  .activity-entry:last-child{border-bottom:none}
+  .activity-list{max-height:180px;overflow-y:auto;margin-top:8px}
+
+  /* ---- Feature 7: CSV Import/Export ---- */
+  .csv-progress{font-size:13px;color:var(--muted);margin-top:6px}
+
+  /* ---- Feature 8: Quick Reply Templates ---- */
+  .qr-dropdown{position:absolute;bottom:calc(100% + 6px);left:0;background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);z-index:30;min-width:260px;overflow:hidden}
+  .qr-item{padding:8px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px}
+  .qr-item:hover{background:#1d2748}
+  .qr-item .qr-cmd{color:var(--blue);font-weight:700;min-width:60px}
+  .qr-item .qr-text{color:var(--muted);font-size:12px}
 </style>
 </head>
 <body>
@@ -309,6 +360,9 @@
           <span id="bell2" class="badge-count hidden">0</span></button>
         <button id="nav-settings" onclick="showTab('settings')">Settings</button>
         <button id="nav-ai" onclick="showTab('ai')" style="color:var(--amber);font-weight:600">&#10024; AI Assistant</button>
+        <button id="nav-todo" onclick="showTab('todo')">&#9989; To-Do List</button>
+        <button id="nav-planner" onclick="showTab('planner')">&#128197; Weekly Planner</button>
+        <button id="nav-workflow" onclick="showTab('workflow')">&#9881; Workflows</button>
       </div>
       <div class="sidefoot">
         <span id="who" class="muted" style="display:block;font-size:12px;margin-bottom:8px"></span>
@@ -433,6 +487,9 @@
           <button id="flt-IN_PROGRESS" onclick="setTaskFilter('IN_PROGRESS')">In progress</button>
           <button id="flt-DONE" onclick="setTaskFilter('DONE')">Done</button>
           <button id="flt-archived" onclick="toggleShowArchived()">Show archived</button>
+          <select id="tagFilterSelect" onchange="setTagFilter(this.value)" style="font-size:13px">
+            <option value="">All tags</option>
+          </select>
           <select id="projFilterSelect" onchange="setProjectFilter(this.value)" style="margin-left:auto">
             <option value="">All projects</option>
           </select>
@@ -441,6 +498,10 @@
             <option value="priority">Sort: Priority</option>
             <option value="newest">Sort: Newest</option>
           </select>
+          <button id="bulkSelectBtn" onclick="toggleBulkMode()" class="ghost" style="font-size:13px">&#9744; Select</button>
+          <button onclick="exportTasksCSV()" class="ghost" style="font-size:13px">&#8595; Export CSV</button>
+          <button onclick="document.getElementById('csvImportInput').click()" class="ghost" style="font-size:13px">&#8593; Import CSV</button>
+          <input id="csvImportInput" type="file" accept=".csv" class="hidden" onchange="importTasksCSV(this)">
         </div>
         <div id="summary" class="muted" style="margin:0 0 12px"></div>
 
@@ -536,12 +597,14 @@
         <div id="msgList" style="max-height:360px;overflow:auto;margin-bottom:10px"></div>
         <div class="row" style="position:relative">
           <div style="flex:1;position:relative">
-            <input id="msgText" placeholder="Write a message... (type @ to mention someone)" style="width:100%"
-              oninput="onMentionInput(event); saveMessageDraft();" onkeydown="onMentionKeydown(event)" onblur="setTimeout(hideMentionMenu, 150)">
+            <input id="msgText" placeholder="Write a message... (type @ to mention someone, / for templates)" style="width:100%"
+              oninput="onMentionInput(event); onQuickReplyInput(event); saveMessageDraft();" onkeydown="onMentionKeydown(event)" onblur="setTimeout(hideMentionMenu, 150); setTimeout(hideQRDropdown, 200)">
             <div id="mentionMenu" class="hidden" style="position:absolute;bottom:calc(100% + 4px);left:0;right:0;
               background:var(--panel);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);
               max-height:180px;overflow-y:auto;z-index:20"></div>
+            <div id="qrDropdown" class="qr-dropdown hidden"></div>
           </div>
+          <button onclick="toggleQRDropdown()" class="ghost" title="Quick reply templates" style="padding:9px 12px">/</button>
           <button onclick="sendMessage()">Send</button>
         </div>
         <p id="msgMsg"></p>
@@ -955,7 +1018,113 @@
     </p>
     </div>
    </div>
-  </div>
+
+    <!-- ===================== BULK ACTION TOOLBAR ===================== -->
+    <div id="bulkToolbar" class="bulk-toolbar hidden">
+      <span class="sel-count" id="bulkSelCount">0 selected</span>
+      <button onclick="bulkComplete()">&#10003; Complete</button>
+      <button onclick="bulkDelete()" style="background:var(--red)">&#128465; Delete</button>
+      <div style="position:relative">
+        <button class="ghost" onclick="toggleBulkStatusMenu()">Change Status &#9660;</button>
+        <div id="bulkStatusMenu" class="hidden" style="position:absolute;bottom:calc(100% + 4px);left:0;background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;z-index:10">
+          <div onclick="bulkSetStatus('TODO')" style="padding:8px 14px;cursor:pointer;font-size:13px">TODO</div>
+          <div onclick="bulkSetStatus('IN_PROGRESS')" style="padding:8px 14px;cursor:pointer;font-size:13px">IN PROGRESS</div>
+          <div onclick="bulkSetStatus('DONE')" style="padding:8px 14px;cursor:pointer;font-size:13px">DONE</div>
+        </div>
+      </div>
+      <div style="position:relative">
+        <button class="ghost" onclick="toggleBulkAssignMenu()">Reassign &#9660;</button>
+        <div id="bulkAssignMenu" class="hidden" style="position:absolute;bottom:calc(100% + 4px);left:0;background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;z-index:10;max-height:200px;overflow-y:auto;min-width:160px">
+          <div id="bulkAssignList"></div>
+        </div>
+      </div>
+      <button class="ghost" onclick="exitBulkMode()">&#10005;</button>
+    </div>
+
+    <!-- ===================== TO-DO LIST VIEW ===================== -->
+    <div id="view-todo" class="hidden">
+      <div class="card">
+        <div class="between" style="margin-bottom:12px">
+          <h2 style="margin:0">&#9989; Personal To-Do List</h2>
+          <div class="filterbar" style="margin:0">
+            <button id="tdf-All" class="active" onclick="setTodoFilter('All')">All</button>
+            <button id="tdf-Pending" onclick="setTodoFilter('Pending')">Pending</button>
+            <button id="tdf-Done" onclick="setTodoFilter('Done')">Done</button>
+          </div>
+        </div>
+        <div class="todo-input-row">
+          <input id="todoInput" placeholder="Add a to-do item..." style="flex:2;min-width:180px">
+          <input id="todoDue" type="time" style="width:110px" title="Due time">
+          <select id="todoPri" style="width:110px">
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="LOW">Low</option>
+          </select>
+          <button onclick="addTodoItem()">Add</button>
+        </div>
+        <div id="todoList"></div>
+      </div>
+    </div>
+
+    <!-- ===================== WEEKLY PLANNER VIEW ===================== -->
+    <div id="view-planner" class="hidden">
+      <div class="card">
+        <div class="planner-header">
+          <button class="ghost" onclick="plannerPrevWeek()">&#8249; Prev</button>
+          <h2 style="margin:0;flex:1;text-align:center" id="plannerLabel">Week of ...</h2>
+          <button class="ghost" onclick="plannerNextWeek()">Next &#8250;</button>
+          <button onclick="plannerGoToday()">Today</button>
+        </div>
+        <div class="planner-week" id="plannerGrid"></div>
+      </div>
+    </div>
+
+    <!-- ===================== WORKFLOW AUTOMATION VIEW ===================== -->
+    <div id="view-workflow" class="hidden">
+      <div class="card">
+        <div class="between" style="margin-bottom:14px">
+          <h2 style="margin:0">&#9881; Workflow Automation</h2>
+          <button onclick="toggleWorkflowForm()">+ New Workflow</button>
+        </div>
+        <div id="workflowFormCard" class="workflow-form hidden">
+          <h3 style="margin:0 0 12px">New Workflow</h3>
+          <label>Workflow Name</label>
+          <input id="wfName" placeholder="e.g. Auto-close overdue tasks" style="width:100%">
+          <div class="row" style="margin-top:10px">
+            <div style="flex:1">
+              <label>Trigger</label>
+              <select id="wfTrigger" style="width:100%" onchange="renderWfTriggerConfig()">
+                <option value="status_change">Status Change</option>
+                <option value="day_gap">Days Past Due</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label id="wfTriggerValLabel">Trigger Value (status)</label>
+              <input id="wfTriggerVal" placeholder="e.g. DONE or 3" style="width:100%">
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div style="flex:1">
+              <label>Action</label>
+              <select id="wfAction" style="width:100%">
+                <option value="change_status">Change Status</option>
+                <option value="create_task">Create Task</option>
+                <option value="notify">Notify (log)</option>
+              </select>
+            </div>
+            <div style="flex:2">
+              <label>Action Config (status name, task title, or message)</label>
+              <input id="wfActionConfig" placeholder="e.g. DONE, Follow-up task, or Alert message" style="width:100%">
+            </div>
+          </div>
+          <button style="margin-top:12px" onclick="saveWorkflow()">Save Workflow</button>
+          <p id="wfMsg"></p>
+        </div>
+        <div id="workflowList"></div>
+        <div id="wfRunLog" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+      </div>
+    </div>
+  </div><!-- /main -->
 
   <!-- ===================== AI ASSISTANT VIEW ===================== -->
   <div id="view-ai" class="hidden main" style="margin-left:224px;flex:1;padding:20px 24px;min-width:0">
@@ -1043,6 +1212,8 @@
     </select>
     <label>Description</label>
     <textarea id="taskDesc" placeholder="Optional details..." style="min-height:44px" oninput="saveTaskDraft()"></textarea>
+    <label>Tags <span class="muted" style="font-weight:400">(comma-separated, e.g. urgent,client)</span></label>
+    <input id="taskTags" placeholder="e.g. urgent,client,review" style="width:100%" oninput="saveTaskDraft()">
     <div class="row" style="margin-top:8px">
       <div style="flex:1"><label>Project <span style="color:var(--red)">*</span> (required)</label><select id="taskProject" style="width:100%" onchange="saveTaskDraft()" required></select></div>
       <div><label>Priority</label>
@@ -1136,6 +1307,10 @@
         <button onclick="addComment()">Post</button>
       </div>
     </div>
+    <div class="modal-section">
+      <h3>Activity Log</h3>
+      <div id="tmActivityLog" class="activity-list"></div>
+    </div>
   </div>
 </div>
 
@@ -1199,7 +1374,7 @@
     document.getElementById("app").classList.remove("hidden");
   }
 
-  const TABS = ["dashboard","tasks","projects","meetings","announcements","messages","broadcast","documents","notes","widgets","attendance","timesheet","leaves","reports","escalation","archive","users","notifications","settings","ai"];
+  const TABS = ["dashboard","tasks","projects","meetings","announcements","messages","broadcast","documents","notes","widgets","attendance","timesheet","leaves","reports","escalation","archive","users","notifications","settings","ai","todo","planner","workflow"];
   function showTab(name){
     TABS.forEach(function(t){
       document.getElementById("view-"+t).classList.toggle("hidden", t!==name);
@@ -1225,6 +1400,9 @@
     if(name==="notifications") loadNotificationsTab();
     if(name==="settings") loadSettingsTab();
     if(name==="ai") loadAiTab();
+    if(name==="todo") renderTodoList();
+    if(name==="planner"){ loadTasks().then(renderPlanner); }
+    if(name==="workflow") renderWorkflowList();
   }
 
   async function doLogin(){
@@ -1454,7 +1632,7 @@
     try{
       await api("/api/tasks", { method:"POST", body: JSON.stringify({
         title: title, projectId: projectId,
-        description: document.getElementById("taskDesc").value,
+        description: buildDescWithTags(document.getElementById("taskDesc").value, document.getElementById("taskTags").value),
         priority: document.getElementById("taskPriority").value, status:"TODO",
         dueDate: document.getElementById("taskDue").value || null,
         assigneeId: assigneeVal ? Number(assigneeVal) : null,
@@ -1466,6 +1644,7 @@
       document.getElementById("taskTitle").value = "";
       document.getElementById("taskDesc").value = "";
       document.getElementById("taskDue").value = "";
+      document.getElementById("taskTags").value = "";
       document.getElementById("taskSiteVisit").value = "no";
       document.getElementById("taskDepartment").value = "";
       msg.textContent = "Saved (stored on the server)";
@@ -1828,6 +2007,8 @@
     await Promise.all([loadSubtasks(id), loadComments(id), loadReassignHistory(id)]);
     api("/api/tasks/"+id+"/open", { method:"PATCH" }).catch(function(){});
     restoreCommentDraft();
+    logActivity(id, "Task opened");
+    renderActivityLog(id);
   }
   /* ===================== Reassign process (Point of Contact) ===================== */
   function renderPoc(t){
@@ -3859,6 +4040,573 @@
     input.focus();
   }
 
+
+  /* ==================== FEATURE 1: BULK ACTIONS ==================== */
+  let bulkMode = false;
+  let selectedTaskIds = new Set();
+
+  function toggleBulkMode(){
+    bulkMode = !bulkMode;
+    selectedTaskIds.clear();
+    var btn = document.getElementById('bulkSelectBtn');
+    if(btn) btn.textContent = bulkMode ? '✓ Select ON' : '☐ Select';
+    document.getElementById('bulkToolbar').classList.toggle('hidden', !bulkMode);
+    renderTaskTable();
+  }
+  function exitBulkMode(){
+    bulkMode = false;
+    selectedTaskIds.clear();
+    var btn = document.getElementById('bulkSelectBtn');
+    if(btn) btn.textContent = '☐ Select';
+    document.getElementById('bulkToolbar').classList.add('hidden');
+    renderTaskTable();
+  }
+  function updateBulkCount(){
+    var el = document.getElementById('bulkSelCount');
+    if(el) el.textContent = selectedTaskIds.size + ' selected';
+    document.getElementById('bulkToolbar').classList.toggle('hidden', !bulkMode);
+  }
+  function toggleTaskSelect(id, cb){
+    if(cb.checked) selectedTaskIds.add(id);
+    else selectedTaskIds.delete(id);
+    updateBulkCount();
+  }
+  function toggleBulkStatusMenu(){
+    document.getElementById('bulkStatusMenu').classList.toggle('hidden');
+    document.getElementById('bulkAssignMenu').classList.add('hidden');
+  }
+  function toggleBulkAssignMenu(){
+    var menu = document.getElementById('bulkAssignMenu');
+    menu.classList.toggle('hidden');
+    document.getElementById('bulkStatusMenu').classList.add('hidden');
+    if(!menu.classList.contains('hidden')){
+      var list = document.getElementById('bulkAssignList');
+      list.innerHTML = (allUsers||[]).map(function(u){
+        return '<div onclick="bulkReassign('+u.id+')" style="padding:8px 14px;cursor:pointer;font-size:13px">'+esc(u.name)+'</div>';
+      }).join('');
+    }
+  }
+  async function bulkComplete(){
+    if(!selectedTaskIds.size) return;
+    var ids = Array.from(selectedTaskIds);
+    for(var i=0;i<ids.length;i++){
+      try{ await api('/api/tasks/'+ids[i]+'/status',{method:'PATCH',body:JSON.stringify({status:'DONE'})}); }catch(e){}
+    }
+    exitBulkMode();
+    await loadTasks();
+  }
+  async function bulkDelete(){
+    if(!selectedTaskIds.size) return;
+    if(!confirm('Delete '+selectedTaskIds.size+' tasks?')) return;
+    var ids = Array.from(selectedTaskIds);
+    for(var i=0;i<ids.length;i++){
+      try{ await api('/api/tasks/'+ids[i],{method:'DELETE'}); }catch(e){}
+    }
+    exitBulkMode();
+    await loadTasks();
+  }
+  async function bulkSetStatus(status){
+    if(!selectedTaskIds.size) return;
+    document.getElementById('bulkStatusMenu').classList.add('hidden');
+    var ids = Array.from(selectedTaskIds);
+    for(var i=0;i<ids.length;i++){
+      try{ await api('/api/tasks/'+ids[i]+'/status',{method:'PATCH',body:JSON.stringify({status:status})}); }catch(e){}
+    }
+    exitBulkMode();
+    await loadTasks();
+  }
+  async function bulkReassign(userId){
+    if(!selectedTaskIds.size) return;
+    document.getElementById('bulkAssignMenu').classList.add('hidden');
+    var ids = Array.from(selectedTaskIds);
+    for(var i=0;i<ids.length;i++){
+      try{ await api('/api/tasks/'+ids[i],{method:'PATCH',body:JSON.stringify({assigneeId:userId})}); }catch(e){}
+    }
+    exitBulkMode();
+    await loadTasks();
+  }
+
+  /* ==================== FEATURE 2: TO-DO LIST ==================== */
+  var TODO_KEY = 'homeland_todos';
+  var todoFilter = 'All';
+  function loadTodos(){ try{ return JSON.parse(localStorage.getItem(TODO_KEY)||'[]'); }catch(e){ return []; } }
+  function saveTodos(todos){ localStorage.setItem(TODO_KEY, JSON.stringify(todos)); }
+  function setTodoFilter(f){
+    todoFilter = f;
+    ['All','Pending','Done'].forEach(function(x){
+      var b = document.getElementById('tdf-'+x);
+      if(b) b.classList.toggle('active', x===f);
+    });
+    renderTodoList();
+  }
+  function addTodoItem(){
+    var text = (document.getElementById('todoInput')||{value:''}).value.trim();
+    if(!text) return;
+    var todos = loadTodos();
+    todos.push({
+      id: Date.now(),
+      text: text,
+      due: (document.getElementById('todoDue')||{value:''}).value,
+      priority: (document.getElementById('todoPri')||{value:'MEDIUM'}).value,
+      done: false,
+      created: new Date().toISOString()
+    });
+    saveTodos(todos);
+    document.getElementById('todoInput').value = '';
+    document.getElementById('todoDue').value = '';
+    renderTodoList();
+  }
+  function toggleTodoItem(id){
+    var todos = loadTodos();
+    var t = todos.find(function(x){ return x.id===id; });
+    if(t) t.done = !t.done;
+    saveTodos(todos);
+    renderTodoList();
+  }
+  function deleteTodoItem(id){
+    saveTodos(loadTodos().filter(function(x){ return x.id!==id; }));
+    renderTodoList();
+  }
+  function renderTodoList(){
+    var el = document.getElementById('todoList');
+    if(!el) return;
+    var todos = loadTodos();
+    if(todoFilter==='Pending') todos = todos.filter(function(t){ return !t.done; });
+    else if(todoFilter==='Done') todos = todos.filter(function(t){ return t.done; });
+    var today = todayStr();
+    var tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+    var tomorrowStr = tomorrow.toISOString().slice(0,10);
+    var groups = {Today:[],Tomorrow:[],Later:[],Undated:[]};
+    todos.forEach(function(t){
+      if(!t.due) groups.Undated.push(t);
+      else if(t.due<=today) groups.Today.push(t);
+      else if(t.due===tomorrowStr) groups.Tomorrow.push(t);
+      else groups.Later.push(t);
+    });
+    var html = '';
+    ['Today','Tomorrow','Later','Undated'].forEach(function(grp){
+      if(!groups[grp].length) return;
+      html += '<div class="todo-group-label">'+grp+'</div>';
+      groups[grp].forEach(function(t){
+        html += '<div class="todo-item">'+
+          '<input type="checkbox" '+(t.done?'checked':'')+' onchange="toggleTodoItem('+t.id+')">'+
+          '<span class="todo-text'+(t.done?' done':'')+'" style="cursor:pointer" onclick="toggleTodoItem('+t.id+')">'+esc(t.text)+'</span>'+
+          (t.due?'<span class="todo-meta">'+esc(t.due)+'</span>':'')+
+          '<span class="todo-pri '+t.priority+' todo-meta">'+t.priority+'</span>'+
+          '<button class="ghost" style="padding:2px 7px;font-size:12px" onclick="deleteTodoItem('+t.id+')">&#128465;</button>'+
+          '</div>';
+      });
+    });
+    if(!html) html = '<p class="muted">No items. Add something above!</p>';
+    el.innerHTML = html;
+  }
+
+  /* ==================== FEATURE 3: WEEKLY PLANNER ==================== */
+  var plannerWeekStart = null;
+  function plannerGetWeekStart(d){
+    var dt = d ? new Date(d) : new Date();
+    var day = dt.getDay();
+    var diff = (day===0) ? -6 : 1 - day;
+    dt.setDate(dt.getDate() + diff);
+    dt.setHours(0,0,0,0);
+    return dt;
+  }
+  function plannerGoToday(){ plannerWeekStart = plannerGetWeekStart(); renderPlanner(); }
+  function plannerPrevWeek(){
+    if(!plannerWeekStart) plannerWeekStart = plannerGetWeekStart();
+    plannerWeekStart.setDate(plannerWeekStart.getDate()-7);
+    renderPlanner();
+  }
+  function plannerNextWeek(){
+    if(!plannerWeekStart) plannerWeekStart = plannerGetWeekStart();
+    plannerWeekStart.setDate(plannerWeekStart.getDate()+7);
+    renderPlanner();
+  }
+  function renderPlanner(){
+    if(!plannerWeekStart) plannerWeekStart = plannerGetWeekStart();
+    var grid = document.getElementById('plannerGrid');
+    var label = document.getElementById('plannerLabel');
+    if(!grid) return;
+    var days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    var todayISO = todayStr();
+    var weekEnd = new Date(plannerWeekStart);
+    weekEnd.setDate(weekEnd.getDate()+6);
+    if(label) label.textContent = 'Week of '+plannerWeekStart.toLocaleDateString([],{month:'short',day:'numeric'})+' – '+weekEnd.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'});
+    var html = '';
+    for(var i=0;i<7;i++){
+      var d = new Date(plannerWeekStart);
+      d.setDate(d.getDate()+i);
+      var iso = d.toISOString().slice(0,10);
+      var isToday = iso===todayISO;
+      var dayTasks = (allTasks||[]).filter(function(t){ return t.dueDate && t.dueDate.slice(0,10)===iso; });
+      html += '<div class="planner-day'+(isToday?' today':'')+'">';
+      html += '<div class="planner-day-label">'+days[i]+'</div>';
+      html += '<div class="planner-day-date">'+d.getDate()+'</div>';
+      dayTasks.forEach(function(t){
+        html += '<div class="planner-task '+t.priority+'" onclick="openTaskDetail('+t.id+')">'+esc(t.title)+'</div>';
+      });
+      if(!dayTasks.length) html += '<div class="muted" style="font-size:12px">No tasks</div>';
+      html += '</div>';
+    }
+    grid.innerHTML = html;
+  }
+
+  /* ==================== FEATURE 4: TASK TAGS ==================== */
+  var activeTagFilter = '';
+  function buildDescWithTags(desc, tags){
+    if(!tags || !tags.trim()) return desc;
+    var cleaned = tags.split(',').map(function(t){ return t.trim(); }).filter(Boolean).join(',');
+    if(!cleaned) return desc;
+    return '[tags:'+cleaned+'] '+(desc||'');
+  }
+  function extractTags(desc){
+    if(!desc) return [];
+    var m = desc.match(/^\[tags:([^\]]+)\]/);
+    return m ? m[1].split(',').map(function(t){ return t.trim(); }).filter(Boolean) : [];
+  }
+  function tagColor(tag){
+    var hash = 0;
+    for(var i=0;i<tag.length;i++) hash = tag.charCodeAt(i) + ((hash<<5)-hash);
+    var colors = ['#c9a250','#34c274','#f2a516','#f0616a','#6ab4f0','#b46af0','#f06ab4','#6af0b4'];
+    return colors[Math.abs(hash) % colors.length];
+  }
+  function tagPillsHTML(desc){
+    var tags = extractTags(desc);
+    if(!tags.length) return '';
+    return tags.map(function(tag){
+      var c = tagColor(tag);
+      return '<span class="tag-pill" style="background:'+c+'22;color:'+c+';border:1px solid '+c+'40">'+esc(tag)+'</span>';
+    }).join('');
+  }
+  function setTagFilter(val){
+    activeTagFilter = val;
+    renderTaskTable();
+  }
+  function buildTagFilter(){
+    var sel = document.getElementById('tagFilterSelect');
+    if(!sel) return;
+    var tagSet = new Set();
+    (allTasks||[]).forEach(function(t){
+      extractTags(t.description).forEach(function(tag){ tagSet.add(tag); });
+    });
+    sel.innerHTML = '<option value="">All tags</option>'+Array.from(tagSet).map(function(tag){
+      return '<option value="'+esc(tag)+'"'+(activeTagFilter===tag?' selected':'')+'>'+esc(tag)+'</option>';
+    }).join('');
+  }
+
+  /* ==================== FEATURE 5: WORKFLOW AUTOMATION ==================== */
+  var WF_KEY = 'homeland_workflows';
+  function loadWorkflows(){ try{ return JSON.parse(localStorage.getItem(WF_KEY)||'[]'); }catch(e){ return []; } }
+  function saveWorkflows(wfs){ localStorage.setItem(WF_KEY, JSON.stringify(wfs)); }
+  function toggleWorkflowForm(){
+    document.getElementById('workflowFormCard').classList.toggle('hidden');
+  }
+  function renderWfTriggerConfig(){
+    var trigger = document.getElementById('wfTrigger').value;
+    var lbl = document.getElementById('wfTriggerValLabel');
+    if(trigger==='status_change') lbl.textContent = 'Trigger Value (status e.g. DONE)';
+    else lbl.textContent = 'Trigger Value (days past due e.g. 3)';
+  }
+  function saveWorkflow(){
+    var name = document.getElementById('wfName').value.trim();
+    var msg = document.getElementById('wfMsg');
+    if(!name){ msg.className='err'; msg.textContent='Enter a workflow name.'; return; }
+    var wf = {
+      id: Date.now(),
+      name: name,
+      trigger: document.getElementById('wfTrigger').value,
+      triggerVal: document.getElementById('wfTriggerVal').value.trim(),
+      action: document.getElementById('wfAction').value,
+      actionConfig: document.getElementById('wfActionConfig').value.trim()
+    };
+    var wfs = loadWorkflows();
+    wfs.push(wf);
+    saveWorkflows(wfs);
+    msg.className='ok'; msg.textContent='Workflow saved!';
+    document.getElementById('wfName').value='';
+    document.getElementById('wfTriggerVal').value='';
+    document.getElementById('wfActionConfig').value='';
+    renderWorkflowList();
+  }
+  function deleteWorkflow(id){
+    saveWorkflows(loadWorkflows().filter(function(w){ return w.id!==id; }));
+    renderWorkflowList();
+  }
+  function renderWorkflowList(){
+    var el = document.getElementById('workflowList');
+    if(!el) return;
+    var wfs = loadWorkflows();
+    if(!wfs.length){ el.innerHTML='<p class="muted">No workflows yet. Create one above.</p>'; return; }
+    el.innerHTML = wfs.map(function(w){
+      return '<div class="workflow-item">'+
+        '<div class="wf-title">'+esc(w.name)+'</div>'+
+        '<div class="wf-meta">Trigger: '+esc(w.trigger)+' = '+esc(w.triggerVal)+' &rarr; Action: '+esc(w.action)+' ('+esc(w.actionConfig)+')</div>'+
+        '<div style="margin-top:8px;display:flex;gap:8px">'+
+        '<button onclick="runWorkflow('+w.id+')">&#9654; Run Now</button>'+
+        '<button class="ghost" onclick="deleteWorkflow('+w.id+')" style="color:var(--red)">Delete</button>'+
+        '</div></div>';
+    }).join('');
+  }
+  async function runWorkflow(id){
+    var wf = loadWorkflows().find(function(w){ return w.id===id; });
+    if(!wf) return;
+    var log = document.getElementById('wfRunLog');
+    if(log) log.textContent = 'Running workflow "'+wf.name+'"...';
+    var fired = 0;
+    var tasks = allTasks||[];
+    for(var i=0;i<tasks.length;i++){
+      var t = tasks[i];
+      var match = false;
+      if(wf.trigger==='status_change' && t.status===wf.triggerVal) match = true;
+      if(wf.trigger==='day_gap' && t.dueDate){
+        var days = Math.floor((Date.now()-new Date(t.dueDate).getTime())/(86400000));
+        if(days >= Number(wf.triggerVal)) match = true;
+      }
+      if(!match) continue;
+      fired++;
+      try{
+        if(wf.action==='change_status'){
+          await api('/api/tasks/'+t.id+'/status',{method:'PATCH',body:JSON.stringify({status:wf.actionConfig})});
+        } else if(wf.action==='create_task'){
+          var proj = t.projectId || (allTasks[0]&&allTasks[0].projectId) || 1;
+          await api('/api/tasks',{method:'POST',body:JSON.stringify({title:wf.actionConfig+' (auto)',projectId:proj,status:'TODO',priority:'MEDIUM'})});
+        } else if(wf.action==='notify'){
+          logActivity(t.id,'Workflow "'+wf.name+'": '+wf.actionConfig);
+        }
+      }catch(e){}
+    }
+    if(log) log.textContent = 'Workflow "'+wf.name+'" done — fired on '+fired+' task(s).';
+    await loadTasks();
+  }
+
+  /* ==================== FEATURE 6: ACTIVITY LOG ==================== */
+  function activityKey(id){ return 'task_activity_'+id; }
+  function logActivity(id, msg){
+    if(!id) return;
+    try{
+      var key = activityKey(id);
+      var log = JSON.parse(localStorage.getItem(key)||'[]');
+      log.push({ ts: new Date().toISOString(), msg: msg });
+      if(log.length>100) log = log.slice(log.length-100);
+      localStorage.setItem(key, JSON.stringify(log));
+    }catch(e){}
+  }
+  function renderActivityLog(id){
+    var el = document.getElementById('tmActivityLog');
+    if(!el) return;
+    // Try API first
+    api('/api/tasks/'+id+'/activity').then(function(data){
+      if(Array.isArray(data) && data.length){
+        el.innerHTML = data.map(function(e){
+          return '<div class="activity-entry">'+fmtDateTime(e.createdAt||e.ts)+' — '+esc(e.action||e.msg||JSON.stringify(e))+'</div>';
+        }).join('');
+      } else { renderLocalActivity(id, el); }
+    }).catch(function(){ renderLocalActivity(id, el); });
+  }
+  function renderLocalActivity(id, el){
+    try{
+      var log = JSON.parse(localStorage.getItem(activityKey(id))||'[]');
+      if(!log.length){ el.innerHTML='<div class="activity-entry muted">No activity yet.</div>'; return; }
+      el.innerHTML = log.slice().reverse().map(function(e){
+        return '<div class="activity-entry">'+fmtDateTime(e.ts)+' — '+esc(e.msg)+'</div>';
+      }).join('');
+    }catch(e){ el.innerHTML=''; }
+  }
+
+  /* ==================== FEATURE 7: CSV IMPORT/EXPORT ==================== */
+  function exportTasksCSV(){
+    var tasks = allTasks||[];
+    var rows = [['id','title','priority','status','dueDate','assignee','project','tags']];
+    tasks.forEach(function(t){
+      rows.push([
+        t.id, t.title, t.priority, t.status, t.dueDate||'',
+        t.assignee ? t.assignee.name : '',
+        t.project ? t.project.name : '',
+        extractTags(t.description).join(';')
+      ]);
+    });
+    var csv = rows.map(function(r){
+      return r.map(function(cell){
+        var s = String(cell===null||cell===undefined?'':cell);
+        if(s.includes(',') || s.includes('"') || s.includes('\n')) s = '"'+s.replace(/"/g,'""')+'"';
+        return s;
+      }).join(',');
+    }).join('\n');
+    var blob = new Blob([csv],{type:'text/csv'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'homeland_tasks_'+todayStr()+'.csv';
+    a.click();
+  }
+  async function importTasksCSV(input){
+    var file = input.files[0];
+    if(!file) return;
+    var text = await file.text();
+    var lines = text.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+    if(lines.length < 2){ alert('CSV appears empty or has no data rows.'); return; }
+    var headers = lines[0].split(',').map(function(h){ return h.trim().toLowerCase().replace(/^"|"$/g,''); });
+    var ok=0, fail=0;
+    var progEl = document.createElement('div');
+    progEl.className = 'csv-progress';
+    var filterbar = document.querySelector('.filterbar');
+    if(filterbar) filterbar.appendChild(progEl);
+    function parseCSVRow(line){
+      var result=[]; var cur=''; var inQ=false;
+      for(var i=0;i<line.length;i++){
+        var c=line[i];
+        if(c==='"'){ if(inQ && line[i+1]==='"'){ cur+='"'; i++; } else inQ=!inQ; }
+        else if(c===',' && !inQ){ result.push(cur); cur=''; }
+        else cur+=c;
+      }
+      result.push(cur);
+      return result;
+    }
+    var projects = [];
+    try{ projects = await api('/api/projects'); }catch(e){}
+    for(var i=1;i<lines.length;i++){
+      var cells = parseCSVRow(lines[i]);
+      var row = {};
+      headers.forEach(function(h,j){ row[h] = (cells[j]||'').trim(); });
+      var title = row['title']||row['name']||'';
+      if(!title) continue;
+      var proj = projects.find(function(p){ return p.name===(row['project']||''); });
+      var projectId = proj ? proj.id : (projects[0] ? projects[0].id : 1);
+      var body = { title:title, projectId:projectId, status:row['status']||'TODO',
+        priority:row['priority']||'MEDIUM', dueDate:row['duedate']||row['due_date']||null };
+      if(row['tags']) body.description = '[tags:'+row['tags'].replace(/;/g,',')+'] ';
+      try{ await api('/api/tasks',{method:'POST',body:JSON.stringify(body)}); ok++; }catch(e){ fail++; }
+      if(progEl) progEl.textContent = 'Imported '+ok+' / '+(lines.length-1)+' rows'+(fail?' ('+fail+' failed)':'')+'...';
+    }
+    if(progEl) progEl.textContent = 'Done! Imported '+ok+' tasks'+(fail?' ('+fail+' failed)':'')+'.'
+    input.value='';
+    await loadTasks();
+  }
+
+  /* ==================== FEATURE 8: QUICK REPLY TEMPLATES ==================== */
+  var QR_TEMPLATES = [
+    {cmd:'/ack', text:"Acknowledged, I'll look into this."},
+    {cmd:'/done', text:"This has been completed."},
+    {cmd:'/eta', text:"I'll have an update by end of day."},
+    {cmd:'/noted', text:"Noted, thank you."},
+    {cmd:'/review', text:"Under review, will revert shortly."}
+  ];
+  var qrVisible = false;
+  function showQRDropdown(){
+    var el = document.getElementById('qrDropdown');
+    if(!el) return;
+    el.innerHTML = QR_TEMPLATES.map(function(t,i){
+      return '<div class="qr-item" onmousedown="applyQRTemplate('+i+')">'+
+        '<span class="qr-cmd">'+esc(t.cmd)+'</span>'+
+        '<span class="qr-text">'+esc(t.text)+'</span></div>';
+    }).join('');
+    el.classList.remove('hidden');
+    qrVisible = true;
+  }
+  function hideQRDropdown(){
+    var el = document.getElementById('qrDropdown');
+    if(el) el.classList.add('hidden');
+    qrVisible = false;
+  }
+  function toggleQRDropdown(){
+    if(qrVisible) hideQRDropdown();
+    else showQRDropdown();
+  }
+  function applyQRTemplate(idx){
+    var tpl = QR_TEMPLATES[idx];
+    if(!tpl) return;
+    var inp = document.getElementById('msgText');
+    if(inp) inp.value = tpl.text;
+    hideQRDropdown();
+    if(inp) inp.focus();
+  }
+  function onQuickReplyInput(event){
+    var val = event.target.value;
+    if(val === '/') { showQRDropdown(); return; }
+    if(val.startsWith('/') && val.length > 1){
+      var q = val.toLowerCase();
+      var el = document.getElementById('qrDropdown');
+      if(!el) return;
+      var filtered = QR_TEMPLATES.filter(function(t){ return t.cmd.startsWith(q); });
+      if(filtered.length){
+        el.innerHTML = filtered.map(function(t,i){
+          var origIdx = QR_TEMPLATES.indexOf(t);
+          return '<div class="qr-item" onmousedown="applyQRTemplate('+origIdx+')">'+
+            '<span class="qr-cmd">'+esc(t.cmd)+'</span>'+
+            '<span class="qr-text">'+esc(t.text)+'</span></div>';
+        }).join('');
+        el.classList.remove('hidden');
+        qrVisible = true;
+      } else { hideQRDropdown(); }
+    } else { hideQRDropdown(); }
+  }
+
+  /* ==================== HOOK BULK SELECT INTO renderTaskTable ==================== */
+  // Patch renderTaskTable to support bulk checkboxes and tags
+  var _origRenderTaskTable = typeof renderTaskTable !== 'undefined' ? renderTaskTable : null;
+  // We monkey-patch by overriding after load - hook into buildTagFilter after tasks load
+  var _origLoadTasks = loadTasks;
+  loadTasks = async function(){
+    var result = await _origLoadTasks.apply(this, arguments);
+    buildTagFilter();
+    return result;
+  };
+
+  // Patch task filter to support tag filter
+  var _origRenderTT = renderTaskTable;
+  renderTaskTable = function(){
+    // Apply tag filter before render by temporarily adjusting allTasks via filtered view
+    if(activeTagFilter){
+      var orig = allTasks;
+      var filtered = orig.filter(function(t){ return extractTags(t.description).indexOf(activeTagFilter)>=0; });
+      allTasks = filtered;
+      _origRenderTT.apply(this, arguments);
+      allTasks = orig;
+    } else {
+      _origRenderTT.apply(this, arguments);
+    }
+    // Inject bulk checkboxes if bulk mode is on
+    if(bulkMode){
+      var rows = document.querySelectorAll('#taskList .item, .tbl tbody tr');
+      // For list-view .item elements, prepend checkbox
+      var items = document.querySelectorAll('#taskList .item');
+      items.forEach(function(item){
+        if(item.querySelector('.row-cb')) return;
+        var idAttr = item.getAttribute('data-id');
+        if(!idAttr){
+          // try to extract from onclick
+          var btn = item.querySelector('[onclick*="openTaskDetail"]');
+          if(btn){
+            var m = (btn.getAttribute('onclick')||'').match(/openTaskDetail\((\d+)\)/);
+            if(m) idAttr = m[1];
+          }
+        }
+        if(!idAttr) return;
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'row-cb';
+        cb.checked = selectedTaskIds.has(Number(idAttr));
+        cb.addEventListener('change', function(){ toggleTaskSelect(Number(idAttr), cb); });
+        item.insertBefore(cb, item.firstChild);
+      });
+    }
+    // Inject tag pills into task list items
+    document.querySelectorAll('#taskList .item').forEach(function(item){
+      if(item.querySelector('.task-tags-row')) return;
+      var btn = item.querySelector('[onclick*="openTaskDetail"]');
+      if(!btn) return;
+      var m = (btn.getAttribute('onclick')||'').match(/openTaskDetail\((\d+)\)/);
+      if(!m) return;
+      var t = (allTasks||[]).find(function(x){ return x.id===Number(m[1]); });
+      if(!t) return;
+      var pills = tagPillsHTML(t.description);
+      if(!pills) return;
+      var tagRow = document.createElement('div');
+      tagRow.className = 'task-tags-row';
+      tagRow.innerHTML = pills;
+      tagRow.style.marginTop = '4px';
+      item.appendChild(tagRow);
+    });
+  };
 
 
 </script>
