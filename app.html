@@ -791,16 +791,63 @@
           <button id="theme-light" class="ghost" onclick="setTheme('light')">Light</button>
         </div>
       </div>
-      <div class="card">
-        <h2>Google Calendar</h2>
-        <div class="between">
-          <p class="muted" style="margin:0">Sync meetings to your Google Calendar.</p>
-          <span class="pill">Not connected</span>
+      <div class="card" id="gcalCard">
+        <h2>Google Calendar Sync</h2>
+        <div class="between" style="margin-bottom:10px">
+          <p class="muted" style="margin:0">Auto-sync tasks with due dates to your Google Calendar.</p>
+          <span class="pill" id="gcalStatusPill">Not connected</span>
         </div>
-        <p class="muted" style="font-size:12px;margin-top:8px">
-          This needs a Google Cloud OAuth Client ID and Secret for this workspace. We can't create those on your behalf -
-          if you'd like this enabled, create an OAuth client in Google Cloud Console and share the Client ID/Secret and we'll wire it up.
-        </p>
+
+        <!-- Step 1: Not connected -->
+        <div id="gcalSetupSection">
+          <p class="muted" style="font-size:12px;margin:0 0 10px">
+            Connect once — every task with a due date will automatically appear in your Google Calendar.
+            When you complete or delete a task, the calendar event is removed too.
+          </p>
+          <div class="row" style="align-items:flex-end;gap:8px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <label>Google OAuth Client ID</label>
+              <input id="gcalClientId" style="width:100%" placeholder="xxxx.apps.googleusercontent.com">
+            </div>
+            <div style="flex:1;min-width:200px">
+              <label>Google OAuth Client Secret</label>
+              <input id="gcalClientSecret" style="width:100%" type="password" placeholder="GOCSPX-...">
+            </div>
+            <button onclick="gcalStartAuth()">Connect Google Calendar</button>
+          </div>
+          <p id="gcalSetupMsg" class="muted" style="font-size:12px;margin-top:8px"></p>
+        </div>
+
+        <!-- Step 2: Auth URL shown (waiting for user to paste redirect) -->
+        <div id="gcalAuthSection" class="hidden">
+          <div class="note" style="margin-bottom:10px">
+            <b>Step 2 of 2 — Authorize in Google</b><br>
+            <span class="muted">Click the link, sign in with Google, then paste the full redirect URL below.</span>
+          </div>
+          <p style="margin:0 0 8px"><a id="gcalAuthLink" href="#" target="_blank" style="word-break:break-all">Open Google authorization page ↗</a></p>
+          <label>Paste the full redirect URL here after approving:</label>
+          <div class="row" style="gap:8px">
+            <input id="gcalRedirectUrl" style="flex:1" placeholder="http://localhost:1/?code=4/0A...">
+            <button onclick="gcalExchangeCode()">Complete Setup</button>
+          </div>
+          <p id="gcalAuthMsg" style="font-size:13px;margin-top:6px"></p>
+        </div>
+
+        <!-- Step 3: Connected -->
+        <div id="gcalConnectedSection" class="hidden">
+          <div class="row" style="align-items:center;gap:12px;margin-bottom:10px">
+            <span class="ok" style="font-size:14px;margin:0">✅ Connected</span>
+            <span id="gcalAccountLabel" class="muted" style="font-size:12px"></span>
+            <button class="ghost" style="margin-left:auto" onclick="gcalSyncAll()">Sync all tasks now</button>
+            <button class="ghost" style="color:var(--red);border-color:var(--red)" onclick="gcalDisconnect()">Disconnect</button>
+          </div>
+          <div style="font-size:12px;color:var(--muted)">
+            ✔ New tasks with due dates → automatically added to Google Calendar<br>
+            ✔ Completed / deleted tasks → automatically removed from Google Calendar<br>
+            ✔ Task due date changes → calendar event updated automatically
+          </div>
+          <div id="gcalSyncLog" style="margin-top:10px;font-size:12px;color:var(--muted);max-height:80px;overflow-y:auto"></div>
+        </div>
       </div>
       <div id="escSettingsCard" class="card hidden">
         <h2>Escalation timelines</h2>
@@ -2804,6 +2851,311 @@
     api("/api/auth/me").then(function(u){ ROLE=u.role; MY_EMAIL=u.email||""; afterLogin(u.name, u.role); })
       .catch(function(){ clearToken(); showLogin(); });
   }
+
+  /* =====================================================================
+     GOOGLE CALENDAR INTEGRATION
+     - Pure browser-side OAuth2 PKCE flow (no server changes needed)
+     - Stores tokens in localStorage under "gcal_*" keys
+     - Auto-syncs tasks on create / status change / delete
+     ===================================================================== */
+
+  var GCAL_KEYS = {
+    clientId:     "gcal_client_id",
+    clientSecret: "gcal_client_secret",
+    accessToken:  "gcal_access_token",
+    refreshToken: "gcal_refresh_token",
+    expiry:       "gcal_token_expiry",
+    eventMap:     "gcal_event_map",   // JSON: { taskId: calendarEventId }
+    calendarId:   "gcal_calendar_id"
+  };
+
+  var GCAL_SCOPES   = "https://www.googleapis.com/auth/calendar.events";
+  var GCAL_REDIRECT = "http://localhost:1";
+
+  /* ---- Helpers ---- */
+  function gcalGet(k){ return localStorage.getItem(k); }
+  function gcalSet(k,v){ localStorage.setItem(k,v); }
+  function gcalDel(k){ localStorage.removeItem(k); }
+
+  function gcalEventMap(){
+    try{ return JSON.parse(gcalGet(GCAL_KEYS.eventMap)||"{}"); }
+    catch(e){ return {}; }
+  }
+  function gcalSaveEventMap(m){ gcalSet(GCAL_KEYS.eventMap, JSON.stringify(m)); }
+
+  function gcalIsConnected(){
+    return !!(gcalGet(GCAL_KEYS.accessToken) && gcalGet(GCAL_KEYS.clientId));
+  }
+
+  function gcalLog(msg){
+    var box = document.getElementById("gcalSyncLog");
+    if(!box) return;
+    var ts = new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    box.innerHTML = '<div>['+ts+'] '+msg+'</div>' + box.innerHTML;
+  }
+
+  /* ---- Token refresh ---- */
+  async function gcalEnsureToken(){
+    var expiry = Number(gcalGet(GCAL_KEYS.expiry)||0);
+    if(Date.now() < expiry - 60000) return gcalGet(GCAL_KEYS.accessToken);
+    // Refresh
+    var clientId     = gcalGet(GCAL_KEYS.clientId);
+    var clientSecret = gcalGet(GCAL_KEYS.clientSecret);
+    var refreshToken = gcalGet(GCAL_KEYS.refreshToken);
+    if(!refreshToken) throw new Error("GCal: not authenticated");
+    var r = await fetch("https://oauth2.googleapis.com/token", {
+      method:"POST",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body: new URLSearchParams({
+        grant_type:"refresh_token",
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken
+      })
+    });
+    var data = await r.json();
+    if(!data.access_token) throw new Error("GCal token refresh failed: "+(data.error_description||data.error||"unknown"));
+    gcalSet(GCAL_KEYS.accessToken, data.access_token);
+    gcalSet(GCAL_KEYS.expiry, String(Date.now() + (data.expires_in||3600)*1000));
+    return data.access_token;
+  }
+
+  /* ---- API call wrapper ---- */
+  async function gcalAPI(path, options){
+    var token = await gcalEnsureToken();
+    options = options || {};
+    var headers = Object.assign({"Authorization":"Bearer "+token, "Content-Type":"application/json"}, options.headers||{});
+    var base = "https://www.googleapis.com";
+    var r = await fetch(base+path, Object.assign({}, options, {headers:headers}));
+    if(r.status===204) return null;
+    var json = await r.json();
+    if(!r.ok) throw new Error("GCal API error: "+(json.error&&json.error.message||r.status));
+    return json;
+  }
+
+  /* ---- Build calendar event from task ---- */
+  function gcalBuildEvent(task){
+    var PRIO = {HIGH:"🔴", MEDIUM:"🟡", LOW:"🟢"};
+    var emoji = PRIO[task.priority] || "📌";
+    var date = task.dueDate;
+    // All-day event on the due date
+    return {
+      summary: emoji + " " + task.title,
+      description: [
+        "Priority: " + (task.priority||""),
+        task.description ? "\n" + task.description : "",
+        "\nManaged by Homeland Tasks"
+      ].join(""),
+      start: { date: date },
+      end:   { date: date },
+      colorId: task.priority==="HIGH" ? "11" : task.priority==="LOW" ? "10" : "5",
+      reminders: { useDefault:false, overrides:[{method:"popup",minutes:60}] }
+    };
+  }
+
+  /* ---- Core sync functions ---- */
+  async function gcalCreateEvent(task){
+    if(!task.dueDate || !gcalIsConnected()) return;
+    try{
+      var calId = gcalGet(GCAL_KEYS.calendarId)||"primary";
+      var ev = await gcalAPI("/calendar/v3/calendars/"+encodeURIComponent(calId)+"/events", {
+        method:"POST", body: JSON.stringify(gcalBuildEvent(task))
+      });
+      var map = gcalEventMap();
+      map[task.id] = ev.id;
+      gcalSaveEventMap(map);
+      gcalLog("📅 Added to Calendar: " + task.title);
+    }catch(e){ gcalLog("⚠️ Calendar add failed: "+e.message); }
+  }
+
+  async function gcalUpdateEvent(task){
+    if(!gcalIsConnected()) return;
+    var map = gcalEventMap();
+    var evId = map[task.id];
+    if(!evId){ if(task.dueDate) await gcalCreateEvent(task); return; }
+    try{
+      var calId = gcalGet(GCAL_KEYS.calendarId)||"primary";
+      if(!task.dueDate){
+        await gcalDeleteEventById(evId, task.id);
+      } else {
+        await gcalAPI("/calendar/v3/calendars/"+encodeURIComponent(calId)+"/events/"+evId, {
+          method:"PUT", body: JSON.stringify(gcalBuildEvent(task))
+        });
+        gcalLog("✏️ Updated Calendar: " + task.title);
+      }
+    }catch(e){
+      // Event may have been manually deleted — recreate
+      if(task.dueDate) await gcalCreateEvent(task);
+    }
+  }
+
+  async function gcalDeleteEventById(evId, taskId){
+    try{
+      var calId = gcalGet(GCAL_KEYS.calendarId)||"primary";
+      await gcalAPI("/calendar/v3/calendars/"+encodeURIComponent(calId)+"/events/"+evId, {method:"DELETE"});
+      var map = gcalEventMap();
+      delete map[taskId];
+      gcalSaveEventMap(map);
+      gcalLog("🗑️ Removed from Calendar (task id "+taskId+")");
+    }catch(e){ gcalLog("⚠️ Calendar delete failed: "+e.message); }
+  }
+
+  async function gcalRemoveTaskEvent(taskId){
+    if(!gcalIsConnected()) return;
+    var map = gcalEventMap();
+    var evId = map[taskId];
+    if(evId) await gcalDeleteEventById(evId, taskId);
+  }
+
+  /* ---- Sync ALL current tasks (bulk) ---- */
+  async function gcalSyncAll(){
+    if(!gcalIsConnected()){ alert("Connect Google Calendar first (Settings → Google Calendar Sync)."); return; }
+    gcalLog("🔄 Bulk sync started...");
+    var tasks = allTasks.filter(function(t){ return t.dueDate && t.status!=="DONE"; });
+    for(var i=0; i<tasks.length; i++){
+      await gcalCreateEvent(tasks[i]);
+    }
+    gcalLog("✅ Bulk sync done — "+tasks.length+" tasks synced.");
+  }
+
+  /* ---- OAuth Setup flow ---- */
+  function gcalStartAuth(){
+    var clientId     = document.getElementById("gcalClientId").value.trim();
+    var clientSecret = document.getElementById("gcalClientSecret").value.trim();
+    var msg          = document.getElementById("gcalSetupMsg");
+    if(!clientId || !clientSecret){
+      msg.className="err"; msg.textContent="Enter both Client ID and Client Secret."; return;
+    }
+    gcalSet(GCAL_KEYS.clientId, clientId);
+    gcalSet(GCAL_KEYS.clientSecret, clientSecret);
+
+    var params = new URLSearchParams({
+      client_id:     clientId,
+      redirect_uri:  GCAL_REDIRECT,
+      response_type: "code",
+      scope:         GCAL_SCOPES,
+      access_type:   "offline",
+      prompt:        "consent"
+    });
+    var authUrl = "https://accounts.google.com/o/oauth2/v2/auth?" + params.toString();
+
+    document.getElementById("gcalAuthLink").href = authUrl;
+    document.getElementById("gcalSetupSection").classList.add("hidden");
+    document.getElementById("gcalAuthSection").classList.remove("hidden");
+    msg.textContent = "";
+  }
+
+  async function gcalExchangeCode(){
+    var raw = document.getElementById("gcalRedirectUrl").value.trim();
+    var msg = document.getElementById("gcalAuthMsg");
+    msg.className="ok"; msg.textContent="Exchanging code...";
+
+    var code = raw;
+    try{
+      var url = new URL(raw.indexOf("://")>-1 ? raw : "http://x/?"+raw);
+      code = url.searchParams.get("code") || raw;
+    }catch(e){}
+
+    try{
+      var r = await fetch("https://oauth2.googleapis.com/token", {
+        method:"POST",
+        headers:{"Content-Type":"application/x-www-form-urlencoded"},
+        body: new URLSearchParams({
+          code:          code,
+          client_id:     gcalGet(GCAL_KEYS.clientId),
+          client_secret: gcalGet(GCAL_KEYS.clientSecret),
+          redirect_uri:  GCAL_REDIRECT,
+          grant_type:    "authorization_code"
+        })
+      });
+      var data = await r.json();
+      if(!data.access_token) throw new Error(data.error_description||data.error||"Token exchange failed");
+      gcalSet(GCAL_KEYS.accessToken,  data.access_token);
+      gcalSet(GCAL_KEYS.refreshToken, data.refresh_token||"");
+      gcalSet(GCAL_KEYS.expiry, String(Date.now()+(data.expires_in||3600)*1000));
+
+      // Get user info to show account label
+      try{
+        var me = await gcalAPI("/oauth2/v2/userinfo");
+        gcalSet("gcal_email", me.email||"");
+      }catch(e){}
+
+      gcalShowConnected();
+      msg.className="ok"; msg.textContent="✅ Connected!";
+    }catch(e){
+      msg.className="err"; msg.textContent = "❌ "+e.message;
+    }
+  }
+
+  function gcalShowConnected(){
+    document.getElementById("gcalSetupSection").classList.add("hidden");
+    document.getElementById("gcalAuthSection").classList.add("hidden");
+    document.getElementById("gcalConnectedSection").classList.remove("hidden");
+    var pill = document.getElementById("gcalStatusPill");
+    pill.textContent = "✅ Connected";
+    pill.style.color = "var(--green)";
+    pill.style.borderColor = "var(--green)";
+    var email = gcalGet("gcal_email")||"";
+    if(email) document.getElementById("gcalAccountLabel").textContent = email;
+  }
+
+  function gcalDisconnect(){
+    if(!confirm("Disconnect Google Calendar? Existing calendar events will NOT be deleted.")) return;
+    [GCAL_KEYS.clientId, GCAL_KEYS.clientSecret, GCAL_KEYS.accessToken,
+     GCAL_KEYS.refreshToken, GCAL_KEYS.expiry, GCAL_KEYS.eventMap, "gcal_email"].forEach(gcalDel);
+    document.getElementById("gcalConnectedSection").classList.add("hidden");
+    document.getElementById("gcalSetupSection").classList.remove("hidden");
+    document.getElementById("gcalStatusPill").textContent = "Not connected";
+    document.getElementById("gcalStatusPill").style.color = "";
+    document.getElementById("gcalStatusPill").style.borderColor = "";
+    gcalLog("Disconnected.");
+  }
+
+  /* ---- Init: check if already connected on page load ---- */
+  function gcalInit(){
+    if(gcalIsConnected()) gcalShowConnected();
+  }
+
+  /* ---- Patch existing app functions to trigger sync ---- */
+  // Wrap addTask to sync after task creation
+  var _origAddTask = addTask;
+  addTask = async function(){
+    await _origAddTask.apply(this, arguments);
+    // Find the newly created task (it's the last one loaded)
+    if(gcalIsConnected() && allTasks.length){
+      var newest = allTasks.slice().sort(function(a,b){ return (b.id||0)-(a.id||0); })[0];
+      if(newest && newest.dueDate) gcalCreateEvent(newest);
+    }
+  };
+
+  // Wrap changeStatus to remove event when DONE
+  var _origChangeStatus = changeStatus;
+  changeStatus = async function(id, status){
+    await _origChangeStatus.apply(this, arguments);
+    if(gcalIsConnected() && status==="DONE") gcalRemoveTaskEvent(id);
+    else if(gcalIsConnected() && status!=="DONE"){
+      var task = allTasks.find(function(t){ return t.id===id; });
+      if(task) gcalUpdateEvent(task);
+    }
+  };
+
+  // Wrap removeTask to delete calendar event
+  var _origRemoveTask = removeTask;
+  removeTask = async function(id){
+    if(gcalIsConnected()) await gcalRemoveTaskEvent(id);
+    await _origRemoveTask.apply(this, arguments);
+  };
+
+  // Wrap quickComplete (checkbox) to remove event when checked
+  var _origQuickComplete = quickComplete;
+  quickComplete = async function(id, checked){
+    await _origQuickComplete.apply(this, arguments);
+    if(gcalIsConnected() && checked) gcalRemoveTaskEvent(id);
+  };
+
+  // Init on load
+  gcalInit();
+
 </script>
 </body>
 </html>
