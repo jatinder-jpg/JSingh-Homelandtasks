@@ -4211,10 +4211,52 @@
   }
 
   /* ---- 5. FORCE PASSWORD CHANGE ---- */
+  /* ---- SHARED: try multiple password-change endpoint patterns ---- */
+  async function apiChangePassword(oldPwd, newPwd){
+    /* The backend may expose the endpoint under different paths.
+       Try them all in order — return true on success, throw on all fail. */
+    var attempts = [
+      { method:"POST",  path:"/api/auth/change-password",
+        body: JSON.stringify({ oldPassword:oldPwd, newPassword:newPwd }) },
+      { method:"PUT",   path:"/api/auth/password",
+        body: JSON.stringify({ oldPassword:oldPwd, newPassword:newPwd }) },
+      { method:"PATCH", path:"/api/auth/password",
+        body: JSON.stringify({ currentPassword:oldPwd, newPassword:newPwd }) },
+      { method:"POST",  path:"/api/users/change-password",
+        body: JSON.stringify({ oldPassword:oldPwd, newPassword:newPwd }) },
+      { method:"PATCH", path:"/api/users/me",
+        body: JSON.stringify({ password:newPwd, currentPassword:oldPwd }) },
+    ];
+
+    var lastErr = null;
+    for(var i=0; i<attempts.length; i++){
+      try{
+        var a = attempts[i];
+        var res = await fetch(BASE_URL + a.path, {
+          method:  a.method,
+          headers: {
+            "Content-Type":  "application/json",
+            "Authorization": "Bearer " + token()
+          },
+          body: a.body
+        });
+        if(res.ok || res.status === 204){
+          return { success:true, endpoint: a.method + " " + a.path };
+        }
+        var errBody = {};
+        try{ errBody = await res.json(); }catch(e){}
+        lastErr = (errBody.error || errBody.message || "HTTP " + res.status);
+      }catch(e){
+        lastErr = e.message;
+      }
+    }
+    throw new Error(lastErr || "Password change endpoint not available on backend.");
+  }
+
   async function doForceChangePassword(){
-    var newPwd  = document.getElementById("fcNew").value;
-    var confirm = document.getElementById("fcConfirm").value;
-    var msg     = document.getElementById("fcMsg");
+    var newPwd   = document.getElementById("fcNew").value;
+    var confirm2 = document.getElementById("fcConfirm").value;
+    var msg      = document.getElementById("fcMsg");
     msg.className = "ok"; msg.textContent = "";
 
     if(newPwd.length < 8){
@@ -4223,64 +4265,87 @@
     if(pwdStrength(newPwd) < 3){
       msg.className="err"; msg.textContent="Password too weak — add uppercase, numbers or symbols."; return;
     }
-    if(newPwd !== confirm){
+    if(newPwd !== confirm2){
       msg.className="err"; msg.textContent="Passwords do not match."; return;
     }
     if(newPwd === "homeland123"){
       msg.className="err"; msg.textContent="Cannot reuse the default password."; return;
     }
 
+    msg.textContent = "Updating password...";
     try{
-      await api("/api/auth/change-password", {
-        method:"POST",
-        body: JSON.stringify({ oldPassword:"homeland123", newPassword:newPwd })
-      });
-      secAuditLog("PASSWORD_CHANGED", "Password changed from default");
-      msg.textContent = "✅ Password updated!";
+      var result = await apiChangePassword("homeland123", newPwd);
+      secAuditLog("PASSWORD_CHANGED", "Password changed from default via " + result.endpoint);
+      msg.className="ok";
+      msg.textContent = "✅ Password changed successfully! Please sign in again.";
       setTimeout(function(){
         document.getElementById("forceChangeModal").classList.add("hidden");
-      }, 1500);
-    }catch(e){
-      // Backend may not support this endpoint yet — store intent locally
-      localStorage.setItem("hl_pwd_changed_local", "1");
-      secAuditLog("PASSWORD_CHANGED_LOCAL", "Password change recorded locally — backend pending");
-      msg.textContent = "✅ Password preference saved. Contact admin to apply on server.";
-      setTimeout(function(){
-        document.getElementById("forceChangeModal").classList.add("hidden");
+        clearToken(); location.reload();
       }, 2000);
+    }catch(e){
+      // Backend doesn't support this endpoint yet — store locally + show clear instructions
+      localStorage.setItem("hl_default_pwd_warned_" + MY_EMAIL, "1");
+      secAuditLog("PASSWORD_CHANGE_BACKEND_PENDING", "Backend endpoint unavailable: " + e.message);
+      msg.className = "ok";
+      msg.innerHTML =
+        "<b>Backend update needed.</b><br>" +
+        "Your backend doesn't have a change-password API yet.<br><br>" +
+        "Please ask your backend developer to add:<br>" +
+        "<code style='font-size:11px;background:var(--bg);padding:2px 6px;border-radius:4px'>" +
+        "POST /api/auth/change-password</code><br><br>" +
+        "<span style='color:var(--green)'>✅ Your request has been recorded locally.</span>";
     }
   }
 
   /* ---- 6. CHANGE PASSWORD (Settings tab) ---- */
   async function doChangePassword(){
-    var oldPwd  = document.getElementById("cpOld").value;
-    var newPwd  = document.getElementById("cpNew").value;
-    var confirm = document.getElementById("cpConfirm").value;
-    var msg     = document.getElementById("cpMsg");
+    var oldPwd   = document.getElementById("cpOld").value;
+    var newPwd   = document.getElementById("cpNew").value;
+    var confirm2 = document.getElementById("cpConfirm").value;
+    var msg      = document.getElementById("cpMsg");
     msg.className="ok"; msg.textContent="";
 
     if(!oldPwd){ msg.className="err"; msg.textContent="Enter your current password."; return; }
     if(newPwd.length < 8){ msg.className="err"; msg.textContent="New password must be at least 8 characters."; return; }
     if(pwdStrength(newPwd) < 3){ msg.className="err"; msg.textContent="Password too weak — add uppercase, numbers or symbols."; return; }
-    if(newPwd !== confirm){ msg.className="err"; msg.textContent="Passwords do not match."; return; }
+    if(newPwd !== confirm2){ msg.className="err"; msg.textContent="Passwords do not match."; return; }
     if(newPwd === "homeland123"){ msg.className="err"; msg.textContent="Cannot reuse the default password."; return; }
     if(newPwd === oldPwd){ msg.className="err"; msg.textContent="New password must be different from current."; return; }
 
-    msg.textContent = "Updating...";
+    msg.textContent = "Verifying current password...";
+
+    // First verify the old password is correct by re-authenticating
     try{
-      await api("/api/auth/change-password", {
+      await api("/api/auth/login", {
         method:"POST",
-        body: JSON.stringify({ oldPassword:oldPwd, newPassword:newPwd })
+        body: JSON.stringify({ email: MY_EMAIL, password: oldPwd })
       });
-      secAuditLog("PASSWORD_CHANGED", "Password successfully changed");
-      msg.className="ok"; msg.textContent="✅ Password changed successfully!";
+    }catch(e){
+      msg.className="err"; msg.textContent="❌ Current password is incorrect."; return;
+    }
+
+    msg.textContent = "Updating password...";
+    try{
+      var result = await apiChangePassword(oldPwd, newPwd);
+      secAuditLog("PASSWORD_CHANGED", "Password changed successfully via " + result.endpoint);
+      msg.className="ok"; msg.textContent="✅ Password changed! Please sign in again.";
       document.getElementById("cpOld").value="";
       document.getElementById("cpNew").value="";
       document.getElementById("cpConfirm").value="";
       document.getElementById("cpPwdStrength").style.display="none";
+      setTimeout(function(){ clearToken(); location.reload(); }, 2500);
     }catch(e){
-      secAuditLog("PASSWORD_CHANGE_FAILED", "Change password error: " + e.message);
-      msg.className="err"; msg.textContent="❌ " + e.message;
+      // Backend endpoint not available — show clear actionable message
+      secAuditLog("PASSWORD_CHANGE_BACKEND_PENDING", e.message);
+      msg.className = "err";
+      msg.innerHTML =
+        "<b>❌ Password change not supported by backend yet.</b><br><br>" +
+        "The backend server needs a change-password API endpoint.<br>" +
+        "Ask your developer to add:<br>" +
+        "<code style='font-size:11px;background:var(--bg);padding:3px 8px;border-radius:4px;display:inline-block;margin-top:4px'>" +
+        "POST /api/auth/change-password<br>" +
+        "Body: { oldPassword, newPassword }</code><br><br>" +
+        "<span style='font-size:12px;color:var(--muted)'>Error detail: " + esc(e.message) + "</span>";
     }
   }
 
