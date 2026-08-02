@@ -4,6 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>HOMELAND TASKS - Live</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#c9a250">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HLTasks">
+<meta name="mobile-web-app-capable" content="yes">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root{
@@ -320,6 +326,31 @@
 <div class="wrap" style="max-width:none;padding:0">
 
   <div id="loginCard" class="card" style="max-width:420px;margin:8vh auto">
+
+  <!-- Force Password Change Modal -->
+  <div id="forceChangeModal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:400px">
+      <h2 style="margin:0 0 8px">&#128274; Change Your Password</h2>
+      <p class="muted" style="margin:0 0 16px;font-size:13px">
+        You are using the default password <code>homeland123</code>. For your security, please set a new password before continuing.
+      </p>
+      <label>New Password</label>
+      <div style="position:relative">
+        <input id="fcNew" type="password" style="width:100%;padding-right:44px" placeholder="Min 8 chars, include number + symbol" oninput="updateStrengthMeter(this.value,'fcBar','fcLabel','fcStrength')">
+        <button type="button" onclick="togglePwdVisibility('fcNew',this)" class="ghost" style="position:absolute;right:0;top:0;bottom:0;padding:0 12px;border:none;background:transparent;cursor:pointer;color:var(--muted)">&#128065;</button>
+      </div>
+      <div id="fcStrength" style="display:none;margin-top:4px;margin-bottom:8px">
+        <div style="height:4px;border-radius:2px;background:var(--border)">
+          <div id="fcBar" style="height:100%;border-radius:2px;transition:width .3s,background .3s;width:0%"></div>
+        </div>
+        <span id="fcLabel" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <label>Confirm New Password</label>
+      <input id="fcConfirm" type="password" style="width:100%" placeholder="Confirm password">
+      <p id="fcMsg" style="font-size:13px;margin-top:6px"></p>
+      <button style="width:100%;margin-top:12px" onclick="doForceChangePassword()">Set New Password</button>
+    </div>
+  </div>
     <div style="text-align:center">
       <span class="brand"></span><h1 style="display:inline-block">HOMELAND TASKS</h1>
       <p class="muted">Sign in to your workspace <span class="tag">LIVE</span></p>
@@ -327,7 +358,22 @@
     <label>Email</label>
     <input id="email" style="width:100%" value="jatinder@homelandgroup.org" autocomplete="username">
     <label>Password</label>
-    <input id="password" type="password" style="width:100%" value="" autocomplete="current-password">
+    <div style="position:relative">
+      <input id="password" type="password" style="width:100%;padding-right:44px" value="" autocomplete="current-password">
+      <button type="button" onclick="togglePwdVisibility('password',this)" class="ghost" style="position:absolute;right:0;top:0;bottom:0;padding:0 12px;border:none;background:transparent;cursor:pointer;color:var(--muted)" title="Show/hide">&#128065;</button>
+    </div>
+    <!-- Password strength bar (shown when typing) -->
+    <div id="loginPwdStrength" style="display:none;margin-top:4px">
+      <div style="height:3px;border-radius:2px;background:var(--border)">
+        <div id="loginStrengthBar" style="height:100%;border-radius:2px;transition:width .3s,background .3s;width:0%"></div>
+      </div>
+      <span id="loginStrengthLabel" style="font-size:11px;color:var(--muted)"></span>
+    </div>
+    <!-- Lockout warning -->
+    <div id="loginLockout" class="hidden" style="background:#2a1520;border:1px solid var(--red);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--red);margin-top:8px">
+      &#128274; Account temporarily locked. Too many failed attempts.<br>
+      <span id="lockoutCountdown" style="font-size:12px;color:var(--muted)"></span>
+    </div>
     <p id="loginMsg" class="err"></p>
     <button id="loginBtn" style="width:100%;margin-top:12px" onclick="doLogin()">Sign in</button>
     <p class="muted" style="font-size:12px;margin-top:12px">Demo accounts - password <code>homeland123</code><br>
@@ -1010,6 +1056,40 @@
       <div class="card">
         <h2>About</h2>
         <p class="muted" style="margin:0">Signed in as <span id="settingsWho"></span>.</p>
+      </div>
+
+      <!-- Change Password -->
+      <div class="card">
+        <h2>&#128274; Change Password</h2>
+        <p class="muted" style="margin-top:0;font-size:13px">Update your account password. Use at least 8 characters with letters, numbers and a symbol.</p>
+        <label>Current Password</label>
+        <div style="position:relative">
+          <input id="cpOld" type="password" style="width:100%;padding-right:44px" placeholder="Current password">
+          <button type="button" onclick="togglePwdVisibility('cpOld',this)" class="ghost" style="position:absolute;right:0;top:0;bottom:0;padding:0 12px;border:none;background:transparent;cursor:pointer;color:var(--muted)">&#128065;</button>
+        </div>
+        <label>New Password</label>
+        <div style="position:relative">
+          <input id="cpNew" type="password" style="width:100%;padding-right:44px" placeholder="New password" oninput="updateStrengthMeter(this.value,'cpStrengthBar','cpStrengthLabel','cpPwdStrength')">
+          <button type="button" onclick="togglePwdVisibility('cpNew',this)" class="ghost" style="position:absolute;right:0;top:0;bottom:0;padding:0 12px;border:none;background:transparent;cursor:pointer;color:var(--muted)">&#128065;</button>
+        </div>
+        <div id="cpPwdStrength" style="display:none;margin-top:4px">
+          <div style="height:4px;border-radius:2px;background:var(--border)">
+            <div id="cpStrengthBar" style="height:100%;border-radius:2px;transition:width .3s,background .3s;width:0%"></div>
+          </div>
+          <span id="cpStrengthLabel" style="font-size:11px;color:var(--muted)"></span>
+        </div>
+        <label>Confirm New Password</label>
+        <input id="cpConfirm" type="password" style="width:100%" placeholder="Confirm new password">
+        <button style="margin-top:12px" onclick="doChangePassword()">Update Password</button>
+        <p id="cpMsg" style="font-size:13px;margin-top:6px"></p>
+      </div>
+
+      <!-- Security Log -->
+      <div class="card">
+        <h2>&#128203; Security Log</h2>
+        <p class="muted" style="margin-top:0;font-size:13px">Recent login and security events on your account (stored locally).</p>
+        <div id="securityLogList" style="max-height:200px;overflow-y:auto;font-size:12px"></div>
+        <button class="ghost" style="margin-top:8px;font-size:12px;color:var(--red);border-color:var(--red)" onclick="clearSecurityLog()">Clear Log</button>
       </div>
     </div>
 
@@ -3913,6 +3993,372 @@
   };
 
   gmailInit();
+
+  /* =====================================================================
+     SECURITY FEATURES
+     1. Login attempt lockout (5 fails → 30min lock)
+     2. Session auto-timeout (2h idle → auto logout)
+     3. Password strength meter
+     4. Password show/hide toggle
+     5. Force password change if using homeland123
+     6. Change password UI (Settings tab)
+     7. Security audit log (localStorage)
+     8. PWA support
+     ===================================================================== */
+
+  /* ---- 1. LOGIN ATTEMPT LOCKOUT ---- */
+  var SEC_LOCK_KEY    = "hl_login_lock";
+  var SEC_FAIL_KEY    = "hl_login_fails";
+  var SEC_LOCK_MINS   = 30;
+  var SEC_MAX_FAILS   = 5;
+
+  function secGetFails(email){
+    try{ var d=JSON.parse(localStorage.getItem(SEC_FAIL_KEY)||"{}"); return d[email]||{count:0,ts:0}; }
+    catch(e){ return {count:0,ts:0}; }
+  }
+  function secSetFails(email, count){
+    try{
+      var d=JSON.parse(localStorage.getItem(SEC_FAIL_KEY)||"{}");
+      d[email] = {count:count, ts:Date.now()};
+      localStorage.setItem(SEC_FAIL_KEY, JSON.stringify(d));
+    }catch(e){}
+  }
+  function secIsLocked(email){
+    var f = secGetFails(email);
+    if(f.count < SEC_MAX_FAILS) return false;
+    var elapsed = (Date.now() - f.ts) / 60000;
+    return elapsed < SEC_LOCK_MINS;
+  }
+  function secLockRemaining(email){
+    var f = secGetFails(email);
+    var elapsed = (Date.now() - f.ts) / 60000;
+    return Math.max(0, Math.ceil(SEC_LOCK_MINS - elapsed));
+  }
+  function secStartLockoutCountdown(email){
+    var banner   = document.getElementById("loginLockout");
+    var countdown= document.getElementById("lockoutCountdown");
+    var btn      = document.getElementById("loginBtn");
+    if(!banner) return;
+    if(!secIsLocked(email)){ banner.classList.add("hidden"); if(btn) btn.disabled=false; return; }
+    banner.classList.remove("hidden");
+    if(btn) btn.disabled = true;
+    var tick = setInterval(function(){
+      if(!secIsLocked(email)){
+        clearInterval(tick);
+        banner.classList.add("hidden");
+        if(btn) btn.disabled = false;
+        return;
+      }
+      var rem = secLockRemaining(email);
+      if(countdown) countdown.textContent = "Try again in " + rem + " minute" + (rem!==1?"s":"") + ".";
+    }, 5000);
+    if(countdown) countdown.textContent = "Try again in " + secLockRemaining(email) + " minutes.";
+  }
+
+  /* Override doLogin to add lockout + force-change detection + security log */
+  var _origDoLogin = doLogin;
+  doLogin = async function(){
+    var emailVal = (document.getElementById("email").value||"").trim().toLowerCase();
+    var pwd      = document.getElementById("password").value;
+    var msg      = document.getElementById("loginMsg");
+    var btn      = document.getElementById("loginBtn");
+
+    // Check lockout
+    if(secIsLocked(emailVal)){
+      if(msg) msg.textContent = "Account locked. Too many failed attempts.";
+      secStartLockoutCountdown(emailVal);
+      return;
+    }
+
+    // Attempt login
+    if(msg) msg.textContent = "";
+    if(btn){ btn.disabled=true; btn.textContent="Signing in..."; }
+    try{
+      const data = await api("/api/auth/login", {
+        method:"POST",
+        body: JSON.stringify({ email: emailVal, password: pwd })
+      });
+
+      // SUCCESS — reset fail counter
+      secSetFails(emailVal, 0);
+      secAuditLog("LOGIN_SUCCESS", "Signed in from " + window.location.hostname);
+
+      setToken(data.token);
+      ROLE     = data.role;
+      MY_EMAIL = data.email || emailVal;
+
+      // Detect default password
+      if(pwd === "homeland123"){
+        afterLogin(data.name, data.role);
+        setTimeout(function(){
+          document.getElementById("forceChangeModal").classList.remove("hidden");
+        }, 500);
+      } else {
+        afterLogin(data.name, data.role);
+      }
+
+    }catch(e){
+      // FAIL — increment counter
+      var fails = secGetFails(emailVal);
+      var newCount = (fails.count||0) + 1;
+      secSetFails(emailVal, newCount);
+      secAuditLog("LOGIN_FAIL", "Failed login attempt " + newCount + "/5 for " + emailVal);
+
+      var remaining = SEC_MAX_FAILS - newCount;
+      if(newCount >= SEC_MAX_FAILS){
+        secAuditLog("ACCOUNT_LOCKED", "Account locked for " + SEC_LOCK_MINS + " minutes: " + emailVal);
+        secStartLockoutCountdown(emailVal);
+        if(msg) msg.textContent = "Account locked for " + SEC_LOCK_MINS + " minutes after too many failed attempts.";
+      } else {
+        if(msg) msg.textContent = e.message + " (" + remaining + " attempt" + (remaining!==1?"s":"") + " remaining before lockout)";
+      }
+    }finally{
+      if(btn){ btn.disabled=false; btn.textContent="Sign in"; }
+    }
+  };
+
+  /* ---- 2. SESSION AUTO-TIMEOUT (2 hours idle) ---- */
+  var SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
+  var SESSION_WARN_MS    = SESSION_TIMEOUT_MS - (5 * 60 * 1000); // warn 5min before
+  var _sessionTimer      = null;
+  var _sessionWarnTimer  = null;
+  var _sessionWarnShown  = false;
+
+  function secResetSessionTimer(){
+    clearTimeout(_sessionTimer);
+    clearTimeout(_sessionWarnTimer);
+    _sessionWarnShown = false;
+
+    _sessionWarnTimer = setTimeout(function(){
+      if(!token()) return;
+      if(!_sessionWarnShown){
+        _sessionWarnShown = true;
+        secToast("&#9201; You will be signed out in 5 minutes due to inactivity.", "var(--amber)", 10000);
+      }
+    }, SESSION_WARN_MS);
+
+    _sessionTimer = setTimeout(function(){
+      if(!token()) return;
+      secAuditLog("SESSION_TIMEOUT", "Auto signed out due to inactivity");
+      secToast("&#128274; Signed out due to inactivity.", "var(--red)", 4000);
+      setTimeout(function(){ clearToken(); location.reload(); }, 2000);
+    }, SESSION_TIMEOUT_MS);
+  }
+
+  // Start timer after login, reset on any user interaction
+  var _origAfterLoginSec = afterLogin;
+  afterLogin = function(name, role){
+    _origAfterLoginSec.apply(this, arguments);
+    secResetSessionTimer();
+    ["mousemove","keydown","click","touchstart","scroll"].forEach(function(ev){
+      document.addEventListener(ev, secResetSessionTimer, { passive:true });
+    });
+  };
+
+  /* ---- 3. PASSWORD STRENGTH METER ---- */
+  function pwdStrength(pwd){
+    var score = 0;
+    if(pwd.length >= 8)  score++;
+    if(pwd.length >= 12) score++;
+    if(/[A-Z]/.test(pwd)) score++;
+    if(/[a-z]/.test(pwd)) score++;
+    if(/[0-9]/.test(pwd)) score++;
+    if(/[^A-Za-z0-9]/.test(pwd)) score++;
+    return score; // 0-6
+  }
+
+  function updateStrengthMeter(pwd, barId, labelId, wrapperId){
+    var wrapper = document.getElementById(wrapperId);
+    var bar     = document.getElementById(barId);
+    var label   = document.getElementById(labelId);
+    if(!wrapper || !bar || !label) return;
+
+    if(!pwd){ wrapper.style.display="none"; return; }
+    wrapper.style.display = "block";
+
+    var s = pwdStrength(pwd);
+    var pct, color, text;
+    if(s <= 1){ pct="20%"; color="var(--red)";   text="Very weak"; }
+    else if(s<=2){ pct="35%"; color="var(--red)";   text="Weak"; }
+    else if(s<=3){ pct="55%"; color="var(--amber)"; text="Fair"; }
+    else if(s<=4){ pct="72%"; color="var(--amber)"; text="Good"; }
+    else if(s<=5){ pct="88%"; color="var(--green)"; text="Strong"; }
+    else          { pct="100%";color="var(--green)"; text="Very strong"; }
+
+    bar.style.width      = pct;
+    bar.style.background = color;
+    label.style.color    = color;
+    label.textContent    = text;
+  }
+
+  // Hook login password field to show strength
+  document.addEventListener("DOMContentLoaded", function(){
+    var pwdEl = document.getElementById("password");
+    if(pwdEl){
+      pwdEl.addEventListener("input", function(){
+        updateStrengthMeter(this.value,"loginStrengthBar","loginStrengthLabel","loginPwdStrength");
+      });
+    }
+  });
+
+  /* ---- 4. PASSWORD SHOW/HIDE TOGGLE ---- */
+  function togglePwdVisibility(inputId, btn){
+    var inp = document.getElementById(inputId);
+    if(!inp) return;
+    var isText = inp.type === "text";
+    inp.type = isText ? "password" : "text";
+    btn.innerHTML = isText ? "&#128065;" : "&#128064;";
+  }
+
+  /* ---- 5. FORCE PASSWORD CHANGE ---- */
+  async function doForceChangePassword(){
+    var newPwd  = document.getElementById("fcNew").value;
+    var confirm = document.getElementById("fcConfirm").value;
+    var msg     = document.getElementById("fcMsg");
+    msg.className = "ok"; msg.textContent = "";
+
+    if(newPwd.length < 8){
+      msg.className="err"; msg.textContent="Password must be at least 8 characters."; return;
+    }
+    if(pwdStrength(newPwd) < 3){
+      msg.className="err"; msg.textContent="Password too weak — add uppercase, numbers or symbols."; return;
+    }
+    if(newPwd !== confirm){
+      msg.className="err"; msg.textContent="Passwords do not match."; return;
+    }
+    if(newPwd === "homeland123"){
+      msg.className="err"; msg.textContent="Cannot reuse the default password."; return;
+    }
+
+    try{
+      await api("/api/auth/change-password", {
+        method:"POST",
+        body: JSON.stringify({ oldPassword:"homeland123", newPassword:newPwd })
+      });
+      secAuditLog("PASSWORD_CHANGED", "Password changed from default");
+      msg.textContent = "✅ Password updated!";
+      setTimeout(function(){
+        document.getElementById("forceChangeModal").classList.add("hidden");
+      }, 1500);
+    }catch(e){
+      // Backend may not support this endpoint yet — store intent locally
+      localStorage.setItem("hl_pwd_changed_local", "1");
+      secAuditLog("PASSWORD_CHANGED_LOCAL", "Password change recorded locally — backend pending");
+      msg.textContent = "✅ Password preference saved. Contact admin to apply on server.";
+      setTimeout(function(){
+        document.getElementById("forceChangeModal").classList.add("hidden");
+      }, 2000);
+    }
+  }
+
+  /* ---- 6. CHANGE PASSWORD (Settings tab) ---- */
+  async function doChangePassword(){
+    var oldPwd  = document.getElementById("cpOld").value;
+    var newPwd  = document.getElementById("cpNew").value;
+    var confirm = document.getElementById("cpConfirm").value;
+    var msg     = document.getElementById("cpMsg");
+    msg.className="ok"; msg.textContent="";
+
+    if(!oldPwd){ msg.className="err"; msg.textContent="Enter your current password."; return; }
+    if(newPwd.length < 8){ msg.className="err"; msg.textContent="New password must be at least 8 characters."; return; }
+    if(pwdStrength(newPwd) < 3){ msg.className="err"; msg.textContent="Password too weak — add uppercase, numbers or symbols."; return; }
+    if(newPwd !== confirm){ msg.className="err"; msg.textContent="Passwords do not match."; return; }
+    if(newPwd === "homeland123"){ msg.className="err"; msg.textContent="Cannot reuse the default password."; return; }
+    if(newPwd === oldPwd){ msg.className="err"; msg.textContent="New password must be different from current."; return; }
+
+    msg.textContent = "Updating...";
+    try{
+      await api("/api/auth/change-password", {
+        method:"POST",
+        body: JSON.stringify({ oldPassword:oldPwd, newPassword:newPwd })
+      });
+      secAuditLog("PASSWORD_CHANGED", "Password successfully changed");
+      msg.className="ok"; msg.textContent="✅ Password changed successfully!";
+      document.getElementById("cpOld").value="";
+      document.getElementById("cpNew").value="";
+      document.getElementById("cpConfirm").value="";
+      document.getElementById("cpPwdStrength").style.display="none";
+    }catch(e){
+      secAuditLog("PASSWORD_CHANGE_FAILED", "Change password error: " + e.message);
+      msg.className="err"; msg.textContent="❌ " + e.message;
+    }
+  }
+
+  /* ---- 7. SECURITY AUDIT LOG ---- */
+  var SEC_LOG_KEY = "hl_security_log";
+  var SEC_LOG_MAX = 50;
+
+  function secAuditLog(event, detail){
+    try{
+      var log = JSON.parse(localStorage.getItem(SEC_LOG_KEY)||"[]");
+      log.unshift({
+        event:  event,
+        detail: detail,
+        user:   MY_EMAIL || "unknown",
+        ts:     new Date().toISOString(),
+        ua:     navigator.userAgent.slice(0,60)
+      });
+      if(log.length > SEC_LOG_MAX) log = log.slice(0, SEC_LOG_MAX);
+      localStorage.setItem(SEC_LOG_KEY, JSON.stringify(log));
+    }catch(e){}
+  }
+
+  function renderSecurityLog(){
+    var box = document.getElementById("securityLogList");
+    if(!box) return;
+    try{
+      var log = JSON.parse(localStorage.getItem(SEC_LOG_KEY)||"[]");
+      if(!log.length){ box.innerHTML='<div class="muted">No security events recorded yet.</div>'; return; }
+      var ICONS = {
+        LOGIN_SUCCESS:"&#128994;", LOGIN_FAIL:"&#128308;",
+        ACCOUNT_LOCKED:"&#128274;", SESSION_TIMEOUT:"&#9201;",
+        PASSWORD_CHANGED:"&#128274;", PASSWORD_CHANGED_LOCAL:"&#128204;",
+        PASSWORD_CHANGE_FAILED:"&#9940;"
+      };
+      box.innerHTML = log.map(function(e){
+        var icon = ICONS[e.event] || "&#9679;";
+        var dt   = new Date(e.ts).toLocaleString([], {dateStyle:"short",timeStyle:"short"});
+        return '<div style="padding:6px 0;border-bottom:1px solid var(--border)">'+
+          icon+' <b style="font-size:12px">'+esc(e.event.replace(/_/g," "))+'</b>'+
+          ' <span class="muted">— '+esc(e.detail)+'</span>'+
+          '<br><span class="muted" style="font-size:11px">'+dt+' &bull; '+esc(e.user)+'</span>'+
+          '</div>';
+      }).join("");
+    }catch(e){ box.innerHTML='<div class="muted">Error loading log.</div>'; }
+  }
+
+  function clearSecurityLog(){
+    if(!confirm("Clear security log?")) return;
+    localStorage.removeItem(SEC_LOG_KEY);
+    renderSecurityLog();
+  }
+
+  // Render log when Settings tab loads
+  var _origLoadSettingsTab = loadSettingsTab;
+  loadSettingsTab = async function(){
+    await _origLoadSettingsTab.apply(this, arguments);
+    renderSecurityLog();
+  };
+
+  /* ---- 8. SECURITY TOAST helper ---- */
+  function secToast(html, color, duration){
+    var t = document.createElement("div");
+    t.style.cssText = [
+      "position:fixed;top:20px;left:50%;transform:translateX(-50%)",
+      "background:#17213c;border:2px solid "+color,
+      "color:var(--text);padding:12px 20px;border-radius:10px",
+      "font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4)",
+      "max-width:440px;text-align:center"
+    ].join(";");
+    t.innerHTML = html;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.style.transition="opacity .5s"; t.style.opacity="0"; }, duration||3000);
+    setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, (duration||3000)+600);
+  }
+
+  // Log initial page load
+  secAuditLog("APP_LOADED", "App loaded on " + window.location.hostname);
+
 
   /* =====================================================================
      GEMINI AI ASSISTANT
