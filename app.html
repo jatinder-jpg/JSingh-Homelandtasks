@@ -272,6 +272,18 @@
   .tclick{cursor:pointer}
   .tclick:hover{text-decoration:underline}
 
+  /* ---- Top bar right cluster ---- */
+  .topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+  .icon-btn{width:30px;height:30px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1}
+  .icon-btn:disabled{opacity:.4;cursor:default}
+  .topbar-user{display:flex;flex-direction:column;line-height:1.2;margin-left:2px}
+  .topbar-username{font-size:12px;font-weight:600}
+  .topbar-userid{font-size:10px;color:var(--muted)}
+  /* ---- Task detail as right-side panel ---- */
+  #taskModal{justify-content:flex-end;align-items:stretch;padding:0;background:rgba(0,0,0,.35)}
+  #taskModal .modal-box{max-width:420px;width:100%;height:100%;border-radius:0;margin:0;box-shadow:-8px 0 30px rgba(0,0,0,.35);overflow-y:auto;animation:slideInRightPanel .18s ease-out}
+  @keyframes slideInRightPanel{from{transform:translateX(100%)}to{transform:translateX(0)}}
+
   /* ---- Modal ---- */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;
     align-items:flex-start;justify-content:center;padding:6vh 16px;z-index:50;overflow-y:auto}
@@ -469,9 +481,16 @@
     <div class="main">
       <div class="topbar">
         <div class="search"><input id="taskSearch" placeholder="Search tasks..." style="width:100%" oninput="renderTaskTable()"></div>
-        <span class="tag">LIVE - connected</span>
-        <div class="bell" onclick="showTab('notifications')" title="Notifications">&#128276;
-          <span id="bell" class="badge hidden">0</span></div>
+        <div class="topbar-right">
+          <button class="icon-btn" disabled title="AI Assistant (coming soon)">✨</button>
+          <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">◑</button>
+          <div class="bell" onclick="showTab('notifications')" title="Notifications">🔔
+            <span id="bell" class="badge hidden">0</span></div>
+          <div class="topbar-user">
+            <span class="topbar-username" id="topbarUserName">-</span>
+            <span class="topbar-userid" id="topbarUserId">-</span>
+          </div>
+        </div>
       </div>
 
     <div id="view-dashboard" class="hidden">
@@ -583,8 +602,7 @@
         <div class="viewtabs">
           <button id="vtab-list" class="active" onclick="setTaskView('list')">List</button>
           <button id="vtab-kanban" onclick="setTaskView('kanban')">Kanban</button>
-          <button id="vtab-calendar" onclick="setTaskView('calendar')">Calendar</button>
-        </div>
+                  </div>
 
         <div class="filterbar">
           <button id="flt-ALL" class="active" onclick="setTaskFilter('ALL')">All</button>
@@ -1305,11 +1323,13 @@
     finally{ btn.disabled = false; btn.textContent = "Sign in"; }
   }
 
-  function afterLogin(name, role){
+  function afterLogin(name, role, id){
     document.getElementById("who").textContent = name + " - " + role;
     document.getElementById("annCompose").classList.toggle("hidden", role !== "ADMIN");
     document.getElementById("inviteCard").classList.toggle("hidden", role !== "ADMIN");
     document.getElementById("settingsWho").textContent = name + " (" + MY_EMAIL + ") - " + role;
+    var tn = document.getElementById("topbarUserName"); if(tn) tn.textContent = name;
+    var ti = document.getElementById("topbarUserId"); if(ti) ti.textContent = id ? ("#"+id) : "";
     showApp();
     initTheme();
     showTab("dashboard");
@@ -1771,23 +1791,29 @@
       '<span class="pill HIGH">High '+counts.HIGH+'</span> '+
       '<span class="pill MEDIUM">Medium '+counts.MEDIUM+'</span> '+
       '<span class="pill LOW">Low '+counts.LOW+'</span> - total '+allTasks.length;
+
+    const unread = [];
+    const rest = [];
+    tasks.forEach(function(t){ (isUnreadTask(t) ? unread : rest).push(t); });
+
     const order = ["Overdue","Due today","Upcoming","No due date"];
     const groups = {}; order.forEach(function(o){ groups[o] = []; });
-    tasks.forEach(function(t){ groups[dateBucket(t)].push(t); });
+    rest.forEach(function(t){ groups[dateBucket(t)].push(t); });
+
     let html = "";
+    if(unread.length){
+      html += '<div class="mgroup"><div class="mgrouphead">Unread <span class="n">'+unread.length+'</span></div>'+
+        unread.map(renderTaskRow).join("")+'</div>';
+    }
     order.forEach(function(g){
       const list = groups[g];
       if(!list.length) return;
-      // Unread tasks (new assignment not yet opened, or a new comment since
-      // last read) float to the top of each section, like Gmail keeping
-      // unread mail visually first within a date group; stable sort keeps
-      // the existing due-date ordering within each unread/read group.
-      list.sort(function(a,b){ return (isUnreadTask(b)?1:0) - (isUnreadTask(a)?1:0); });
       html += '<div class="mgroup"><div class="mgrouphead">'+g+' <span class="n">'+list.length+'</span></div>'+
         list.map(renderTaskRow).join("")+'</div>';
     });
     document.getElementById("taskList").innerHTML = html || '<div class="muted" style="padding:24px;text-align:center">No tasks match.</div>';
   }
+
   function renderKanban(){
     const tasks = filterTasks();
     const cols = { TODO:[], IN_PROGRESS:[], DONE:[] };
@@ -3131,7 +3157,7 @@
 
   initTheme();
   if (token()){
-    api("/api/auth/me").then(function(u){ ROLE=u.role; MY_EMAIL=u.email||""; afterLogin(u.name, u.role); })
+    api("/api/auth/me").then(function(u){ ROLE=u.role; MY_EMAIL=u.email||""; afterLogin(u.name, u.role, u.id); })
       .catch(function(){ clearToken(); showLogin(); });
   }
 
