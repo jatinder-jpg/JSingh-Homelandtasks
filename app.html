@@ -119,6 +119,31 @@
   .heromini-l{display:block;font-size:10px;color:var(--hero-sub,#C9BE9A);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
   .swatchbtn{width:26px;height:26px;border-radius:50%;padding:0;border:none;cursor:pointer;transition:box-shadow .12s}
 
+  /* ---- Dashboard pro (enterprise divider layout) ---- */
+  .dashpro{padding:22px}
+  .dashpro-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+  .dashpro-eyebrow{font-size:11px;color:var(--muted);letter-spacing:.08em}
+  .dashpro-date{font-size:17px;font-weight:600;margin-top:4px}
+  .dashpro-avatar{width:32px;height:32px;border-radius:50%;background:var(--hero-bg,#2A2418);color:var(--hero-text,#F5E9C8);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+  .dashpro-metrics{display:grid;grid-template-columns:repeat(4,1fr);margin-bottom:22px}
+  .dashpro-metric{padding:0 18px;border-right:1px solid var(--border);cursor:pointer}
+  .dashpro-metric:first-child{padding-left:0}
+  .dashpro-metric.last{border-right:none}
+  .dashpro-mlabel{font-size:11px;color:var(--muted)}
+  .dashpro-mnum{font-size:26px;font-weight:700;margin:6px 0 3px;color:var(--text)}
+  .dashpro-mnum.overdue{color:var(--red)}
+  .dashpro-msub{font-size:11px;color:var(--muted)}
+  .dashpro-msub.overdue{color:var(--red)}
+  .dashpro-body{display:grid;grid-template-columns:1.5fr 1fr;gap:28px}
+  @media(max-width:900px){.dashpro-metrics{grid-template-columns:repeat(2,1fr)}.dashpro-metric{border-right:none;border-bottom:1px solid var(--border);padding:10px 0}.dashpro-body{grid-template-columns:1fr}}
+  .dashtaskrow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
+  .dashtaskrow:last-child{border-bottom:none}
+  .dashtaskdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+  .dashtasktitle{flex:1;font-size:13px;color:var(--text)}
+  .dashtaskowner{font-size:11px;color:var(--muted)}
+  .dashtaskdue{font-size:11px;color:var(--muted);width:64px;text-align:right;flex-shrink:0}
+  .dashtaskdue.overdue{color:var(--red)}
+
   /* ---- View tabs (List/Kanban/Calendar, category tabs) ---- */
   .viewtabs{display:flex;gap:6px;margin-bottom:14px}
   .viewtabs button{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:500;padding:6px 14px;font-size:13px}
@@ -450,57 +475,61 @@
       </div>
 
     <div id="view-dashboard" class="hidden">
-      <div class="dashtoprow herolayout">
-        <div class="card herocard" onclick="dashOpenFilter('all')" title="Click to view in Task list">
-          <div class="herolabel">This week</div>
-          <div class="heronum" id="dashStatTotal">0</div>
-          <div class="herosub">total tasks in your workspace</div>
-          <div class="heromini">
-            <div class="heromini-item" onclick="event.stopPropagation();dashOpenFilter('mine')" title="Click to view in Task list"><span class="heromini-n" id="dashStatMine">0</span><span class="heromini-l">mine</span></div>
-            <div class="heromini-item" onclick="event.stopPropagation();dashOpenFilter('dueToday')" title="Click to view in Task list"><span class="heromini-n" id="dashStatDueToday">0</span><span class="heromini-l">due today</span></div>
-            <div class="heromini-item" onclick="event.stopPropagation();dashOpenFilter('pastDue')" title="Click to view in Task list"><span class="heromini-n" id="dashStatPastDue">0</span><span class="heromini-l">overdue</span></div>
+      <div class="card dashpro">
+        <div class="dashpro-head">
+          <div>
+            <div class="dashpro-eyebrow">HOMELAND TASKS / OVERVIEW</div>
+            <div class="dashpro-date" id="dashProDate"></div>
           </div>
-        </div>
-        <div class="card dashwelcome">
-          <div style="flex:1">
-            <div id="dashWelcomeMsg" style="font-weight:600;margin-bottom:4px"></div>
-            <div class="muted" style="font-size:13px;margin-bottom:10px" id="dashWelcomeSub"></div>
+          <div class="row" style="gap:10px;align-items:center">
+            <span class="hidden"><span id="dashWelcomeMsg"></span><span id="dashWelcomeSub"></span></span>
             <button onclick="showTab('tasks'); openNewTaskModal()">+ Add Task</button>
+            <div class="dashpro-avatar" id="dashProAvatar">?</div>
           </div>
-          <div class="emoji" aria-hidden="true">&#128221;</div>
         </div>
-      </div>
-
-      <div class="dash2col-eq">
-        <div class="card">
-          <div class="between">
-            <h2 style="margin:0">Statistics</h2>
-            <div class="row">
-              <button id="dashStatsWeekly" class="ghost" onclick="setDashStatsRange('weekly')">Weekly</button>
-              <button id="dashStatsMonthly" onclick="setDashStatsRange('monthly')">Monthly</button>
+        <div class="dashpro-metrics">
+          <div class="dashpro-metric" onclick="dashOpenFilter('all')" title="Click to view in Task list">
+            <div class="dashpro-mlabel">Total tasks</div>
+            <div class="dashpro-mnum" id="dashStatTotal">0</div>
+            <div class="dashpro-msub"><span id="dashStatMine">0</span> assigned to you</div>
+          </div>
+          <div class="dashpro-metric">
+            <div class="dashpro-mlabel">Completion rate</div>
+            <div class="dashpro-mnum" id="dashCompletionRate">0%</div>
+            <div class="dashpro-msub" id="dashCompletionSub">&nbsp;</div>
+          </div>
+          <div class="dashpro-metric" onclick="dashOpenFilter('dueToday')" title="Click to view in Task list">
+            <div class="dashpro-mlabel">Due today</div>
+            <div class="dashpro-mnum" id="dashStatDueToday">0</div>
+            <div class="dashpro-msub">&nbsp;</div>
+          </div>
+          <div class="dashpro-metric last" onclick="dashOpenFilter('pastDue')" title="Click to view in Task list">
+            <div class="dashpro-mlabel">Overdue</div>
+            <div class="dashpro-mnum overdue" id="dashStatPastDue">0</div>
+            <div class="dashpro-msub overdue">&nbsp;</div>
+          </div>
+        </div>
+        <div class="dashpro-body">
+          <div class="dashpro-main">
+            <div class="between" style="margin-bottom:14px">
+              <h2 style="margin:0">Task pipeline</h2>
+              <div class="row">
+                <button id="dashStatsWeekly" class="ghost" onclick="setDashStatsRange('weekly')">Weekly</button>
+                <button id="dashStatsMonthly" onclick="setDashStatsRange('monthly')">Monthly</button>
+              </div>
             </div>
+            <div style="position:relative;height:110px;margin-bottom:22px">
+              <canvas id="dashLineChart"></canvas>
+            </div>
+            <h2 style="margin-bottom:6px">Task list</h2>
+            <div id="dashProTaskList"></div>
           </div>
-          <div style="position:relative;height:220px">
-            <canvas id="dashLineChart"></canvas>
+          <div class="dashpro-side">
+            <h2>Team</h2>
+            <div id="dashTeamIncomplete"></div>
+            <h2 style="margin-top:22px">Priority mix</h2>
+            <div id="dashPriorityDonut"></div>
           </div>
-        </div>
-        <div class="card">
-          <h2>Priority Task Summary</h2>
-          <div id="dashPriorityDonut"></div>
-        </div>
-      </div>
-
-      <div class="dash2col">
-        <div class="card">
-          <div class="between">
-            <h2 style="margin:0" id="dashCalLabel">Calendar</h2>
-            <div class="row"><button class="ghost" onclick="dashCalPrev()">&lsaquo;</button><button class="ghost" onclick="dashCalNext()">&rsaquo;</button></div>
-          </div>
-          <div id="dashCalStrip" class="dashdaystrip"></div>
-        </div>
-        <div class="card">
-          <h2>Team Incomplete Task</h2>
-          <div id="dashTeamIncomplete"></div>
         </div>
       </div>
     </div>
@@ -2530,6 +2559,46 @@
   }
 
   /* ===================== Dashboard (Taskopad-style overview) ===================== */
+  function dashDueLabel(t){
+    if(!t.dueDate) return "No date";
+    var today = todayStr();
+    var tmr = new Date(Date.now()+86400000).toISOString().slice(0,10);
+    if(t.dueDate===today) return "Today";
+    if(t.dueDate===tmr) return "Tomorrow";
+    if(t.dueDate<today) return "Overdue";
+    var d = new Date(t.dueDate+"T00:00:00");
+    return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  }
+  function renderDashCompletion(){
+    var total = allTasks.length;
+    var done = allTasks.filter(function(t){ return t.status==="DONE"; }).length;
+    var pct = total ? Math.round(done/total*100) : 0;
+    var rEl = document.getElementById("dashCompletionRate");
+    var sEl = document.getElementById("dashCompletionSub");
+    if(rEl) rEl.textContent = pct + "%";
+    if(sEl) sEl.textContent = done + " of " + total + " done";
+  }
+  function renderDashProTaskList(){
+    var box = document.getElementById("dashProTaskList");
+    if(!box) return;
+    var open = allTasks.filter(function(t){ return t.status!=="DONE"; });
+    open.sort(function(a,b){
+      var ad = a.dueDate || "9999-99-99", bd = b.dueDate || "9999-99-99";
+      return ad<bd?-1:ad>bd?1:0;
+    });
+    var top = open.slice(0,6);
+    if(!top.length){ box.innerHTML = '<div class="muted">No open tasks.</div>'; return; }
+    var pcolor = {HIGH:"var(--red)",MEDIUM:"var(--blue)",LOW:"var(--green)"};
+    box.innerHTML = top.map(function(t){
+      var lbl = dashDueLabel(t);
+      return '<div class="dashtaskrow" onclick="showTab(\'tasks\')">'+
+        '<span class="dashtaskdot" style="background:'+(pcolor[t.priority]||"var(--muted)")+'"></span>'+
+        '<span class="dashtasktitle">'+esc(t.title)+'</span>'+
+        '<span class="dashtaskowner">'+esc(t.assignee?t.assignee.name:"Unassigned")+'</span>'+
+        '<span class="dashtaskdue'+(lbl==="Overdue"?" overdue":"")+'">'+lbl+'</span>'+
+      '</div>';
+    }).join("");
+  }
   function renderDashboardView(){
     const view = document.getElementById("view-dashboard");
     if(!view || view.classList.contains("hidden")) return;
@@ -2537,8 +2606,14 @@
     renderDashWelcome();
     renderDashLineChart();
     renderDashPriorityDonut();
-    renderDashCalStrip();
     renderDashTeamIncomplete();
+    renderDashCompletion();
+    renderDashProTaskList();
+    var dEl = document.getElementById("dashProDate");
+    if(dEl) dEl.textContent = new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+    var aEl = document.getElementById("dashProAvatar");
+    var whoEl = document.getElementById("who");
+    if(aEl && whoEl) aEl.textContent = initialsOf((whoEl.textContent||"").split(" - ")[0]);
   }
   function dashOpenFilter(key){
     statFilter = key;
@@ -2690,11 +2765,12 @@
       .sort(function(a,b){ return b.n-a.n; })
       .slice(0,8);
     if(!rows.length){ box.innerHTML = '<div class="muted">Nobody has incomplete tasks. All caught up.</div>'; return; }
+    const max = rows[0].n;
     box.innerHTML = rows.map(function(r){
-      return '<div class="dashteamrow">'+
-        '<span class="avatar">'+esc(initialsOf(r.u.name))+'</span>'+
-        '<span class="name">'+esc(r.u.name)+'</span>'+
-        '<span class="cnt">'+r.n+'</span>'+
+      const pct = max ? Math.round(r.n/max*100) : 0;
+      return '<div style="margin-bottom:12px">'+
+        '<div class="between" style="font-size:12px;margin-bottom:5px"><span>'+esc(r.u.name)+'</span><span class="muted">'+r.n+' open</span></div>'+
+        '<div style="height:4px;background:var(--border);border-radius:3px"><div style="width:'+pct+'%;height:100%;background:var(--blue);border-radius:3px"></div></div>'+
       '</div>';
     }).join("");
   }
