@@ -627,6 +627,10 @@
           <input id="csvImportInput" type="file" accept=".csv" class="hidden" onchange="importTasksCSV(this)">
         </div>
         <div id="summary" class="muted" style="margin:0 0 12px"></div>
+        <div id="userFilterBanner" class="hidden card" style="padding:8px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+          <span id="userFilterText"></span>
+          <button class="ghost" style="margin-left:auto" onclick="clearUserFilter()">Clear filter</button>
+        </div>
 
         <div id="tv-list">
           <div id="taskList" class="mlist"></div>
@@ -660,6 +664,8 @@
       </div>
       <div class="card">
         <div class="between"><h2 style="margin:0">Projects</h2>
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:400;margin-left:auto;margin-right:10px">
+            <input id="favFilterProject" type="checkbox" onchange="setFavFilter('project', this.checked)" style="width:auto"> Favourites only</label>
           <button class="ghost" onclick="loadProjectsFull()">Refresh</button></div>
         <div id="pjList"></div>
       </div>
@@ -778,6 +784,8 @@
       </div>
       <div class="card">
         <div class="between"><h2 style="margin:0">Documents</h2>
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:400;margin-left:auto;margin-right:10px">
+            <input id="favFilterDocument" type="checkbox" onchange="setFavFilter('document', this.checked)" style="width:auto"> Favourites only</label>
           <button class="ghost" onclick="loadDocuments()">Refresh</button></div>
         <div id="docList"></div>
       </div>
@@ -792,6 +800,8 @@
       </div>
       <div class="card">
         <div class="between"><h2 style="margin:0">Your notes</h2>
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:400;margin-left:auto;margin-right:10px">
+            <input id="favFilterNote" type="checkbox" onchange="setFavFilter('note', this.checked)" style="width:auto"> Favourites only</label>
           <button class="ghost" onclick="loadNotes()">Refresh</button></div>
         <div id="noteList"></div>
       </div>
@@ -901,7 +911,7 @@
             <button class="ghost" onclick="loadActivityReport()">Refresh</button>
           </div>
         </div>
-        <p class="muted" style="margin-top:0;font-size:12px">Open time is how long TaskOPad sat open (foreground or background). Active time is time spent actually interacting with it. Reported separately per platform - only Web is instrumented today; a Mobile row will appear once the iOS/Android apps send heartbeats too.</p>
+        <p class="muted" style="margin-top:0;font-size:12px">Open time is how long Homeland Tasks sat open (foreground or background). Active time is time spent actually interacting with it. Reported separately per platform - only Web is instrumented today; a Mobile row will appear once the iOS/Android apps send heartbeats too.</p>
         <div class="tbl-wrap">
           <table class="tbl">
             <thead><tr><th>User</th><th>Day</th><th>Platform</th><th>Open time</th><th>Active time</th></tr></thead>
@@ -1162,12 +1172,35 @@
     <div class="between">
       <h2 id="tmTitle" style="margin:0"></h2>
       <div class="row" style="gap:6px">
+        <button id="tmPinBtn" class="ghost" onclick="toggleTaskModalPin()">&#128205; Pin</button>
         <button class="ghost" style="border-color:#c0392b;color:#c0392b" onclick="toggleAlertPanel()">&#128680; Alert</button>
         <button class="ghost" onclick="closeTaskDetail()">Close</button>
       </div>
     </div>
     <p id="tmDesc" class="muted" style="margin-top:0"></p>
     <div id="tmMeta" class="row" style="margin-bottom:4px"></div>
+
+    <div class="modal-section">
+      <h3>Progress</h3>
+      <div class="row" style="align-items:center;gap:10px">
+        <input id="tmProgressRange" type="range" min="0" max="100" step="5" style="flex:1" oninput="onTaskProgressInput(this.value)">
+        <span id="tmProgressLabel" style="min-width:40px;text-align:right">0%</span>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Attachments</h3>
+      <div id="tmAttachments"></div>
+      <div class="row" style="margin-top:8px">
+        <select id="tmAttachExisting" style="flex:1"><option value="">Attach an existing document...</option></select>
+        <button class="ghost" onclick="attachExistingDocument()">Attach</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="tmAttachFile" type="file" style="flex:1">
+        <button onclick="uploadTaskAttachmentFile()">Upload &amp; attach (max 5MB)</button>
+      </div>
+      <p id="tmAttachMsg" class="muted" style="font-size:12px"></p>
+    </div>
     <div class="row" style="align-items:center;gap:6px;margin-bottom:6px;font-size:12px">
       <span class="muted">Followers:</span>
       <span id="tmFollowers"></span>
@@ -1248,6 +1281,8 @@
   let dashLineChartInstance = null;
   let activeTaskId = null;
   let draggingTaskId = null;
+  let userFilterEmail = "";
+  let userFilterName = "";
 
   function todayStr(){ return new Date().toISOString().slice(0,10); }
   function initialsOf(name){
@@ -1276,6 +1311,86 @@
     return res.json();
   }
 
+  /* =====================================================================
+     LOCAL ENHANCEMENTS: Pin / Favourites / Progress % / Task attachments
+     These add TaskOPad-style features on top of the existing data without
+     changing any task/project/note/document create-or-update payload sent
+     to the backend, so they can't break the shared API for anyone else.
+     Each is stored per signed-in user in this browser only.
+     ===================================================================== */
+  function hlLsKey(base){ return base + "_" + (MY_EMAIL || "anon"); }
+  function hlLoad(base, fallback){
+    try{ var v = JSON.parse(localStorage.getItem(hlLsKey(base))); return v==null ? fallback : v; }
+    catch(e){ return fallback; }
+  }
+  function hlSave(base, val){ try{ localStorage.setItem(hlLsKey(base), JSON.stringify(val)); }catch(e){} }
+
+  /* ---- Pinned tasks (TaskOPad-style "Pin Task" section) ---- */
+  function isPinned(id){ return hlLoad("hl_pinned_tasks", []).indexOf(id) > -1; }
+  function togglePin(id, ev){
+    if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+    var pins = hlLoad("hl_pinned_tasks", []);
+    var idx = pins.indexOf(id);
+    if(idx>-1) pins.splice(idx,1); else pins.unshift(id);
+    hlSave("hl_pinned_tasks", pins);
+    renderTaskTable();
+    if(taskView==="kanban") renderKanban();
+  }
+
+  /* ---- Favourites (Projects / Notes / Documents) ---- */
+  function isFav(kind, id){ return hlLoad("hl_favorites_"+kind, []).indexOf(id) > -1; }
+  function toggleFav(kind, id, ev){
+    if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+    var key = "hl_favorites_"+kind;
+    var favs = hlLoad(key, []);
+    var idx = favs.indexOf(id);
+    if(idx>-1) favs.splice(idx,1); else favs.unshift(id);
+    hlSave(key, favs);
+    if(kind==="project") renderProjectsFull();
+    if(kind==="note") renderNotes();
+    if(kind==="document") renderDocuments();
+  }
+  function setFavFilter(kind, on){ hlSave("hl_favfilter_"+kind, !!on);
+    if(kind==="project") renderProjectsFull();
+    if(kind==="note") renderNotes();
+    if(kind==="document") renderDocuments();
+  }
+  function syncFavFilterCheckbox(kind, elId){
+    var el = document.getElementById(elId);
+    if(el) el.checked = hlLoad("hl_favfilter_"+kind, false);
+  }
+
+  /* ---- Per-task progress % (TaskOPad-style progress bar) ---- */
+  function getProgress(id){ var p = hlLoad("hl_task_progress", {}); return p[id]==null ? 0 : p[id]; }
+  function setProgress(id, val){
+    val = Math.max(0, Math.min(100, Math.round(Number(val)||0)));
+    var p = hlLoad("hl_task_progress", {});
+    p[id] = val;
+    hlSave("hl_task_progress", p);
+    return val;
+  }
+  function progressBarHtml(id, small){
+    var pct = getProgress(id);
+    return '<div class="'+(small?'':'row')+'" style="align-items:center;gap:6px;'+(small?'margin-top:4px':'')+'">'+
+      '<div style="flex:1;height:'+(small?'4px':'6px')+';background:var(--border);border-radius:4px;overflow:hidden">'+
+      '<div style="width:'+pct+'%;height:100%;background:var(--accent, #c9a250)"></div></div>'+
+      (small?'<span class="muted" style="font-size:10px">'+pct+'%</span>':'')+
+    '</div>';
+  }
+
+  /* ---- Per-task attachments (links documents already uploaded via the Documents module to a task) ---- */
+  function getTaskAttachments(id){ var m = hlLoad("hl_task_attachments", {}); return m[id] || []; }
+  function linkTaskAttachment(taskId, doc){
+    var m = hlLoad("hl_task_attachments", {});
+    m[taskId] = (m[taskId]||[]).concat([{ id: doc.id, name: doc.name, hasFile: !!doc.hasFile, url: doc.url||"", linkedAt: Date.now() }]);
+    hlSave("hl_task_attachments", m);
+  }
+  function unlinkTaskAttachment(taskId, docId){
+    var m = hlLoad("hl_task_attachments", {});
+    m[taskId] = (m[taskId]||[]).filter(function(a){ return a.id !== docId; });
+    hlSave("hl_task_attachments", m);
+  }
+
   function showLogin(){
     document.getElementById("app").classList.add("hidden");
     document.getElementById("loginCard").classList.remove("hidden");
@@ -1293,13 +1408,13 @@
     });
     if(name==="dashboard"){ loadProjects(); loadUsers().then(renderDashboardView); loadTasks().then(renderDashboardView); }
     if(name==="tasks"){ loadProjects(); loadUsers(); loadTasks(); maybeShowWhatsNew(); checkTaskDraftBanner(); restoreDashboardTab(); loadDashboardAnnouncement(); }
-    if(name==="projects") loadProjectsFull();
+    if(name==="projects"){ loadProjectsFull(); syncFavFilterCheckbox("project","favFilterProject"); }
     if(name==="meetings") loadMeetings();
     if(name==="announcements") loadAnnouncements();
     if(name==="messages"){ if(!allUsers.length) loadUsers(); loadMessages(); restoreMessageDraft(); }
     if(name==="broadcast") loadBroadcast();
-    if(name==="documents") loadDocuments();
-    if(name==="notes") loadNotes();
+    if(name==="documents"){ loadDocuments(); syncFavFilterCheckbox("document","favFilterDocument"); }
+    if(name==="notes"){ loadNotes(); syncFavFilterCheckbox("note","favFilterNote"); }
     if(name==="widgets") loadWidgets();
     if(name==="attendance") loadAttendance();
     if(name==="timesheet") loadTimesheet();
@@ -1481,6 +1596,7 @@
         '<div><b>'+esc(u.name)+'</b><br><span class="muted" style="font-size:12px">'+esc(u.email)+'</span></div>'+
         '</div><div class="row" style="align-items:center;gap:8px">'+
         '<span class="pill '+(u.role==="ADMIN"?"HIGH":"LOW")+'">'+esc(roleLabel(u))+'</span>'+
+        '<button class="ghost" style="font-size:12px" title="See this person\'s tasks" onclick="viewUserTasks(\''+esc(u.email)+'\',\''+esc(u.name).replace(/'/g,"\\'")+'\')">View tasks</button>'+
         (canManage && !isSuperAdmin ? '<button class="ghost" style="font-size:12px" title="Toggle Admin/Member" onclick="setUserRole('+u.id+',\''+(u.role==="ADMIN"?"MEMBER":"ADMIN")+'\')">Make '+(u.role==="ADMIN"?"Member":"Admin")+'</button>' : '')+
         (canManage ? '<select style="font-size:12px" title="Reporting manager" onchange="setUserManager('+u.id+',this.value)">'+managerOptions+'</select>' :
           (u.managerEmail ? '<span class="muted" style="font-size:12px">Reports to '+esc(u.managerEmail)+'</span>' : ''))+
@@ -1737,6 +1853,7 @@
       if(statFilter==="mine" && !(t.assignee && t.assignee.email===MY_EMAIL)) return false;
       if(statFilter==="dueToday" && !(t.dueDate===today && t.status!=="DONE")) return false;
       if(statFilter==="pastDue" && !(t.dueDate && t.dueDate<today && t.status!=="DONE")) return false;
+      if(userFilterEmail && !(t.assignee && t.assignee.email===userFilterEmail)) return false;
       if(categoryTab==="unread" && !isUnreadTask(t)) return false;
       if(categoryTab==="flagged" && t.priority!=="HIGH") return false;
       const title = (t.title||"").toLowerCase();
@@ -1775,12 +1892,14 @@
       : '<span class="avatar" style="background:var(--border);color:var(--muted)" title="Unassigned">-</span>';
     return '<div class="mrow'+(unread?' unread':'')+(t.status==="DONE"?' done':'')+'" data-id="'+t.id+'">'+
       '<input type="checkbox" class="chk mchk" '+(t.status==="DONE"?"checked":"")+' onchange="quickComplete('+t.id+', this.checked)" title="Mark done">'+
+      '<button class="ghost" style="padding:2px 6px" title="'+(isPinned(t.id)?'Unpin':'Pin to top')+'" onclick="togglePin('+t.id+', event)">'+(isPinned(t.id)?'&#128204;':'&#128205;')+'</button>'+
       '<span class="mudot'+(unread?'':' hidden')+'" title="Unread"></span>'+
       avatar+
       '<div class="mmain">'+
         '<span class="mproj">'+(t.project?esc(t.project.name):'No project')+'</span>'+
         '<span class="msubject"><b class="tclick" onclick="openTaskDetail('+t.id+')">'+esc(t.title)+'</b>'+
           (t.archived?' <span class="pill">Archived</span>':'')+snippet+'</span>'+
+        (t.status!=="DONE" ? progressBarHtml(t.id, true) : '')+
       '</div>'+
       '<div class="mright">'+
         '<span class="pill '+t.priority+'">'+t.priority+'</span>'+
@@ -1795,7 +1914,31 @@
       '</div>'+
     '</div>';
   }
+  function viewUserTasks(email, name){
+    userFilterEmail = email;
+    userFilterName = name;
+    showTab("tasks");
+  }
+  function clearUserFilter(){
+    userFilterEmail = "";
+    userFilterName = "";
+    renderTaskTable();
+    if(taskView==="kanban") renderKanban();
+  }
   function renderTaskTable(){
+    const banner = document.getElementById("userFilterBanner");
+    if(banner){
+      banner.classList.toggle("hidden", !userFilterEmail);
+      if(userFilterEmail){
+        const cnt = allTasks.filter(function(t){ return t.assignee && t.assignee.email===userFilterEmail; });
+        const open = cnt.filter(function(t){ return t.status!=="DONE"; });
+        const overdue = cnt.filter(function(t){ return t.dueDate && t.dueDate<todayStr() && t.status!=="DONE"; });
+        const done = cnt.filter(function(t){ return t.status==="DONE"; });
+        document.getElementById("userFilterText").innerHTML =
+          "&#128100; Showing tasks for <b>"+esc(userFilterName||userFilterEmail)+"</b> - "+
+          cnt.length+" total, "+open.length+" open, "+overdue.length+" overdue, "+done.length+" done";
+      }
+    }
     const tasks = filterTasks();
     const counts = { HIGH:0, MEDIUM:0, LOW:0 };
     allTasks.forEach(function(t){ if(counts[t.priority]!==undefined) counts[t.priority]++; });
@@ -1804,15 +1947,23 @@
       '<span class="pill MEDIUM">Medium '+counts.MEDIUM+'</span> '+
       '<span class="pill LOW">Low '+counts.LOW+'</span> - total '+allTasks.length;
 
+    const pinned = [];
+    const unpinnedTasks = [];
+    tasks.forEach(function(t){ (isPinned(t.id) ? pinned : unpinnedTasks).push(t); });
+
     const unread = [];
     const rest = [];
-    tasks.forEach(function(t){ (isUnreadTask(t) ? unread : rest).push(t); });
+    unpinnedTasks.forEach(function(t){ (isUnreadTask(t) ? unread : rest).push(t); });
 
     const order = ["Overdue","Due today","Upcoming","No due date"];
     const groups = {}; order.forEach(function(o){ groups[o] = []; });
     rest.forEach(function(t){ groups[dateBucket(t)].push(t); });
 
     let html = "";
+    if(pinned.length){
+      html += '<div class="mgroup"><div class="mgrouphead">&#128205; Pinned <span class="n">'+pinned.length+'</span></div>'+
+        pinned.map(renderTaskRow).join("")+'</div>';
+    }
     if(unread.length){
       html += '<div class="mgroup"><div class="mgrouphead">Unread <span class="n">'+unread.length+'</span></div>'+
         unread.map(renderTaskRow).join("")+'</div>';
@@ -1837,9 +1988,12 @@
       const list = cols[s];
       const nxt = nextStatus[s];
       return '<div class="kcol" ondragover="allowDrop(event)" ondragleave="this.classList.remove('+Q+'dragover'+Q+')" ondrop="dropOnColumn(event,'+Q+s+Q+')"><h3>'+labels[s]+' <span class="n">'+list.length+'</span></h3>'+
-        (list.map(function(t){
-          return '<div class="kcard" draggable="true" ondragstart="dragStart(event,'+t.id+')"><b class="tclick" onclick="openTaskDetail('+t.id+')">'+esc(t.title)+'</b>'+
+        (list.slice().sort(function(a,b){ return (isPinned(b.id)?1:0)-(isPinned(a.id)?1:0); }).map(function(t){
+          return '<div class="kcard" draggable="true" ondragstart="dragStart(event,'+t.id+')">'+
+            '<div class="between"><b class="tclick" onclick="openTaskDetail('+t.id+')">'+esc(t.title)+'</b>'+
+            '<button class="ghost" style="padding:1px 5px" title="'+(isPinned(t.id)?'Unpin':'Pin to top')+'" onclick="togglePin('+t.id+', event)">'+(isPinned(t.id)?'&#128204;':'&#128205;')+'</button></div>'+
             '<div class="muted" style="font-size:11px">'+(t.project?esc(t.project.name):'')+'</div>'+
+            (s!=="DONE" ? progressBarHtml(t.id, true) : '')+
             '<div class="kmeta"><span class="pill '+t.priority+'">'+t.priority+'</span>'+
             (nxt ? '<button class="ghost" onclick="changeStatus('+t.id+','+Q+nxt+Q+')">Move &#9656;</button>' : '<span class="muted">Done</span>')+
             '</div></div>';
@@ -1923,11 +2077,94 @@
     document.getElementById("taskModal").classList.remove("hidden");
     renderFollowers(t);
     renderPoc(t);
+    updateTaskModalPinBtn(id);
+    document.getElementById("tmProgressRange").value = getProgress(id);
+    document.getElementById("tmProgressLabel").textContent = getProgress(id) + "%";
+    renderTaskAttachmentsUI(id);
     await Promise.all([loadSubtasks(id), loadComments(id), loadReassignHistory(id)]);
     api("/api/tasks/"+id+"/open", { method:"PATCH" }).catch(function(){});
     restoreCommentDraft();
     logActivity(id, "Task opened");
     renderActivityLog(id);
+  }
+  function updateTaskModalPinBtn(id){
+    var btn = document.getElementById("tmPinBtn");
+    if(btn) btn.innerHTML = isPinned(id) ? "&#128204; Pinned" : "&#128205; Pin";
+  }
+  function toggleTaskModalPin(){
+    if(!activeTaskId) return;
+    togglePin(activeTaskId);
+    updateTaskModalPinBtn(activeTaskId);
+  }
+  function onTaskProgressInput(val){
+    if(!activeTaskId) return;
+    var pct = setProgress(activeTaskId, val);
+    document.getElementById("tmProgressLabel").textContent = pct + "%";
+    renderTaskTable();
+    if(taskView==="kanban") renderKanban();
+  }
+  /* ---- Task attachments (linked from the Documents module; see LOCAL ENHANCEMENTS above) ---- */
+  function renderTaskAttachmentsUI(taskId){
+    var atts = getTaskAttachments(taskId);
+    document.getElementById("tmAttachments").innerHTML = atts.length
+      ? atts.map(function(a){
+          var openControl = a.hasFile
+            ? '<a href="#" class="tclick" onclick="openUploadedDocument('+a.id+'); return false">'+esc(a.name)+'</a>'
+            : '<a href="'+esc(a.url)+'" target="_blank" rel="noopener">'+esc(a.name)+'</a>';
+          return '<div class="item between" style="padding:4px 0">&#128206; '+openControl+
+            '<button class="ghost" style="padding:2px 8px" onclick="unlinkTaskAttachment('+taskId+','+a.id+'); renderTaskAttachmentsUI('+taskId+')">Remove</button></div>';
+        }).join("")
+      : '<div class="muted" style="font-size:12px">No attachments yet.</div>';
+    api("/api/documents").then(function(list){
+      documentsCache = list;
+      var linkedIds = atts.map(function(a){ return a.id; });
+      var sel = document.getElementById("tmAttachExisting");
+      sel.innerHTML = '<option value="">Attach an existing document...</option>'+
+        list.filter(function(d){ return linkedIds.indexOf(d.id)===-1; })
+          .map(function(d){ return '<option value="'+d.id+'">'+esc(d.name)+'</option>'; }).join("");
+    }).catch(function(){});
+  }
+  function attachExistingDocument(){
+    if(!activeTaskId) return;
+    var sel = document.getElementById("tmAttachExisting");
+    var id = Number(sel.value);
+    if(!id) return;
+    var doc = (documentsCache||[]).find(function(d){ return d.id===id; });
+    if(!doc) return;
+    linkTaskAttachment(activeTaskId, doc);
+    renderTaskAttachmentsUI(activeTaskId);
+  }
+  async function uploadTaskAttachmentFile(){
+    if(!activeTaskId) return;
+    var msg = document.getElementById("tmAttachMsg");
+    var fileInput = document.getElementById("tmAttachFile");
+    var file = fileInput.files[0];
+    if(!file){ msg.className="err"; msg.textContent="Choose a file first."; return; }
+    if(file.size > 5*1024*1024){ msg.className="err"; msg.textContent="File is larger than 5MB."; return; }
+    msg.className="ok"; msg.textContent="Uploading...";
+    var form = new FormData();
+    form.append("file", file);
+    form.append("name", file.name);
+    try{
+      var res = await fetch(BASE_URL + "/api/documents/upload", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + token() },
+        body: form
+      });
+      if(!res.ok){
+        var m = "Upload failed ("+res.status+")";
+        try{ var b = await res.json(); m = b.error || b.message || m; }catch(e){}
+        throw new Error(m);
+      }
+      fileInput.value = "";
+      var list = await api("/api/documents");
+      documentsCache = list;
+      var created = list.slice().sort(function(a,b){ return (b.id||0)-(a.id||0); })
+        .find(function(d){ return d.name===file.name; }) || list[0];
+      if(created) linkTaskAttachment(activeTaskId, created);
+      msg.textContent = "Uploaded and attached.";
+      renderTaskAttachmentsUI(activeTaskId);
+    }catch(e){ msg.className="err"; msg.textContent = e.message; }
   }
   /* ===================== Reassign process (Point of Contact) ===================== */
   function renderPoc(t){
@@ -2301,15 +2538,22 @@
       msg.textContent="Saved"; await loadDocuments();
     }catch(e){ msg.className="err"; msg.textContent=e.message; }
   }
+  let documentsCache = [];
   async function loadDocuments(){
-    const list = await api("/api/documents");
+    documentsCache = await api("/api/documents");
+    renderDocuments();
+  }
+  function renderDocuments(){
+    var favOnly = hlLoad("hl_favfilter_document", false);
+    var list = favOnly ? documentsCache.filter(function(d){ return isFav("document", d.id); }) : documentsCache;
     document.getElementById("docList").innerHTML = list.map(function(d){
       const openControl = d.hasFile
         ? '<a href="#" class="tclick" onclick="openUploadedDocument('+d.id+'); return false">'+esc(d.name)+'</a> <span class="muted" style="font-size:11px">(uploaded file)</span>'
         : '<a href="'+esc(d.url)+'" target="_blank" rel="noopener">'+esc(d.name)+'</a>';
-      return '<div class="item between">'+openControl+
+      return '<div class="item between">'+
+        '<span><button class="ghost" style="padding:1px 6px" title="'+(isFav("document",d.id)?'Unstar':'Star')+'" onclick="toggleFav('+String.fromCharCode(39)+'document'+String.fromCharCode(39)+','+d.id+', event)">'+(isFav("document",d.id)?'&#9733;':'&#9734;')+'</button> '+openControl+'</span>'+
         '<button class="ghost" onclick="deleteDocument('+d.id+')">Delete</button></div>';
-    }).join("") || '<div class="muted">No documents yet.</div>';
+    }).join("") || '<div class="muted">'+(favOnly?'No favourite documents.':'No documents yet.')+'</div>';
   }
   async function uploadDocument(){
     const msg = document.getElementById("docUploadMsg");
@@ -2371,15 +2615,19 @@
   }
   function renderNotes(){
     var Q = String.fromCharCode(39);
-    document.getElementById("noteList").innerHTML = notesCache.map(function(n){
+    var favOnly = hlLoad("hl_favfilter_note", false);
+    var list = favOnly ? notesCache.filter(function(n){ return isFav("note", n.id); }) : notesCache;
+    document.getElementById("noteList").innerHTML = list.map(function(n){
       if(n._editing){
         return '<div class="note"><textarea id="noteEdit'+n.id+'" style="min-height:44px">'+esc(n.content||"")+'</textarea>'+
           '<div class="row" style="margin-top:6px"><button onclick="saveNote('+n.id+')">Save</button>'+
           '<button class="ghost" onclick="cancelEditNote('+n.id+')">Cancel</button></div></div>';
       }
-      return '<div class="note between"><span class="tclick" onclick="startEditNote('+n.id+')">'+esc(n.content||"")+'</span>'+
+      return '<div class="note between">'+
+        '<span><button class="ghost" style="padding:1px 6px" title="'+(isFav("note",n.id)?'Unstar':'Star')+'" onclick="toggleFav('+Q+'note'+Q+','+n.id+', event)">'+(isFav("note",n.id)?'&#9733;':'&#9734;')+'</button> '+
+        '<span class="tclick" onclick="startEditNote('+n.id+')">'+esc(n.content||"")+'</span></span>'+
         '<button class="ghost" onclick="deleteNote('+n.id+')">x</button></div>';
-    }).join("") || '<div class="muted">No notes yet.</div>';
+    }).join("") || '<div class="muted">'+(favOnly?'No favourite notes.':'No notes yet.')+'</div>';
   }
   function startEditNote(id){
     notesCache.forEach(function(n){ n._editing = (n.id===id); });
@@ -2820,7 +3068,10 @@
     renderProjectsFull();
   }
   function renderProjectsFull(){
-    document.getElementById("pjList").innerHTML = projectsCache.map(function(p){
+    var Q = String.fromCharCode(39);
+    var favOnly = hlLoad("hl_favfilter_project", false);
+    var list = favOnly ? projectsCache.filter(function(p){ return isFav("project", p.id); }) : projectsCache;
+    document.getElementById("pjList").innerHTML = list.map(function(p){
       if(p._editing){
         return '<div class="item">'+
           '<input id="pjEditName'+p.id+'" style="width:100%;margin-bottom:6px" value="'+esc(p.name)+'">'+
@@ -2828,11 +3079,13 @@
           '<div class="row"><button onclick="saveProjectFull('+p.id+')">Save</button>'+
           '<button class="ghost" onclick="cancelEditProject('+p.id+')">Cancel</button></div></div>';
       }
-      return '<div class="item between"><div><b>'+esc(p.name)+'</b>'+
+      return '<div class="item between"><div>'+
+        '<button class="ghost" style="padding:1px 6px" title="'+(isFav("project",p.id)?'Unstar':'Star')+'" onclick="toggleFav('+Q+'project'+Q+','+p.id+', event)">'+(isFav("project",p.id)?'&#9733;':'&#9734;')+'</button> '+
+        '<b>'+esc(p.name)+'</b>'+
         (p.description?'<br><span class="muted">'+esc(p.description)+'</span>':'')+'</div>'+
         '<div class="row"><button class="ghost" onclick="startEditProject('+p.id+')">Edit</button>'+
         '<button class="ghost" style="color:var(--red);border-color:var(--red)" onclick="deleteProjectFull('+p.id+')">Delete</button></div></div>';
-    }).join("") || '<div class="muted">No projects yet.</div>';
+    }).join("") || '<div class="muted">'+(favOnly?'No favourite projects.':'No projects yet.')+'</div>';
   }
   async function createProjectFull(){
     const msg = document.getElementById("pjMsg");
