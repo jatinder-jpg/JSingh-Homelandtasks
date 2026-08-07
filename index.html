@@ -384,12 +384,29 @@
   .qr-item:hover{background:#1d2748}
   .qr-item .qr-cmd{color:var(--blue);font-weight:700;min-width:60px}
   .qr-item .qr-text{color:var(--muted);font-size:12px}
+
+      /* ---- Auth screen (light, matches Homeland Helpdesk sign-in) ---- */
+      .auth-card{background:#fff !important;border:1px solid #e5e7eb !important;border-radius:18px !important;box-shadow:0 10px 40px rgba(0,0,0,.18) !important;padding:32px !important;color:#111 !important}
+      .auth-card .brand{width:38px;height:38px;border-radius:10px;display:inline-block;vertical-align:middle;margin-right:10px;background:linear-gradient(135deg,#1e3a5f,#c9a250)}
+      .auth-head{display:flex;align-items:center;gap:0;margin-bottom:8px}
+      .auth-title{font-size:19px;font-weight:800;color:#111;margin:0;display:inline-block}
+      .auth-sub{font-size:12px;color:#6b7280;margin-top:2px}
+      .auth-card label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:700;margin:16px 0 6px}
+      .auth-card #email,.auth-card #password{width:100%;padding:11px 13px;border-radius:10px;border:1px solid #d8dbe0 !important;background:#fff !important;color:#111 !important;font-size:14px}
+      .auth-card #email::placeholder,.auth-card #password::placeholder{color:#b0b4bb}
+      .auth-card #email:focus,.auth-card #password:focus{outline:none;border-color:#1e3a5f;box-shadow:0 0 0 3px rgba(30,58,95,.14)}
+      .auth-card #loginBtn{width:100%;margin-top:18px;padding:12px;border-radius:10px;border:none;background:#1e3a5f !important;color:#fff !important;font-weight:700;font-size:14px;cursor:pointer}
+      .auth-card #loginBtn:hover{background:#16304d !important}
+      .auth-card .tag{background:#eaf2ff;color:#1e3a5f;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700}
+      .auth-card #loginLockout{background:#fdecea !important;border-color:#f3b4ac !important;color:#8a2b22 !important}
+      .auth-card #lockoutCountdown{color:#a35b52 !important}
+      .auth-card .ghost{color:#6b7280 !important;background:transparent !important;border:none !important}
 </style>
 </head>
 <body>
 <div class="wrap" style="max-width:none;padding:0">
 
-  <div id="loginCard" class="card" style="max-width:420px;margin:8vh auto">
+        <div id="loginCard" class="card auth-card" style="max-width:420px;margin:8vh auto">
 
   <!-- Force Password Change Modal -->
   <div id="forceChangeModal" class="modal-overlay hidden">
@@ -420,7 +437,7 @@
       <p class="muted">Sign in to your workspace <span class="tag">LIVE</span></p>
     </div>
     <label>Email</label>
-    <input id="email" style="width:100%" value="jatinder@homelandgroup.org" autocomplete="username">
+          <input id="email" style="width:100%" autocomplete="username" placeholder="you@homelandgroup.org">
     <label>Password</label>
     <div style="position:relative">
       <input id="password" type="password" style="width:100%;padding-right:44px" value="" autocomplete="current-password">
@@ -440,9 +457,7 @@
     </div>
     <p id="loginMsg" class="err"></p>
     <button id="loginBtn" style="width:100%;margin-top:12px" onclick="doLogin()">Sign in</button>
-    <p class="muted" style="font-size:12px;margin-top:12px">Demo accounts - password <code>homeland123</code><br>
-      jatinder@ - abhay@ - umang@ - priya@ - naveen@homelandgroup.org</p>
-  </div>
+    iv>
 
   <div id="app" class="hidden">
    <div class="layout">
