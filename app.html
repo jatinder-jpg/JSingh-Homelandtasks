@@ -293,6 +293,17 @@
   .modal-box .between{margin-bottom:10px}
   .modal-section{margin-top:16px}
   .modal-section h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+  .modal-box-wide{max-width:880px}
+  .newtask-split{display:flex;gap:24px;align-items:flex-start;margin-top:12px}
+  .newtask-form{flex:1;min-width:0}
+  .newtask-side{width:300px;flex-shrink:0;border-left:1px solid var(--border);padding-left:20px;display:flex;flex-direction:column;min-height:360px}
+  .newtask-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:12px}
+  .newtask-tab{background:transparent;border:none;border-bottom:2px solid transparent;border-radius:0;color:var(--muted);padding:8px 10px;font-size:13px;cursor:pointer}
+  .newtask-tab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+  .newtask-tab-body{flex:1}
+  .newtask-msgbox{display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
+  .newtask-msgbox input{flex:1;opacity:.6}
+  @media(max-width:760px){.newtask-split{flex-direction:column}.newtask-side{width:100%;border-left:none;border-top:1px solid var(--border);padding-left:0;padding-top:16px;margin-top:16px;min-height:auto}}
   .subrow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
   .subrow span{flex:1}
   .subrow.done span{text-decoration:line-through;color:var(--muted)}
@@ -1128,7 +1139,7 @@
 </div>
 
 <div id="newTaskModal" class="modal-overlay hidden" onclick="if(event.target===this) closeNewTaskModal()">
-  <div class="modal-box">
+  <div class="modal-box modal-box-wide">
     <div class="between">
       <h2 style="margin:0">Add new task</h2>
       <button class="ghost" onclick="closeNewTaskModal()">Close</button>
@@ -1139,6 +1150,8 @@
       <button class="ghost" style="padding:4px 8px" onclick="resumeTaskDraft()">Resume</button>
       <button class="ghost" style="padding:4px 8px" onclick="discardTaskDraft()">Discard</button>
     </div>
+    <div class="newtask-split">
+      <div class="newtask-form">
     <label>Title</label>
     <input id="taskTitle" placeholder="e.g. Site visit - Sector 22" style="width:100%" oninput="saveTaskDraft()">
     <label>Site visit required?</label>
@@ -1168,6 +1181,22 @@
     <p class="muted" style="font-size:11px;margin-top:2px">Admins see every task. Members see tasks assigned to them, tasks assigned to their team, and tasks they created. Setting a group here just labels who it's for - use Reassign process afterwards to pick a specific point of contact.</p>
     <button style="margin-top:12px" onclick="addTask()">Add task</button>
     <p id="taskMsg"></p>
+      </div>
+      <div class="newtask-side">
+        <div class="newtask-tabs">
+          <button type="button" class="newtask-tab active" data-tab="comment" onclick="switchNewTaskTab('comment')">Comment</button>
+          <button type="button" class="newtask-tab" data-tab="attachment" onclick="switchNewTaskTab('attachment')">Attachment</button>
+          <button type="button" class="newtask-tab" data-tab="activity" onclick="switchNewTaskTab('activity')">Log Activity</button>
+        </div>
+        <div class="newtask-tab-body">
+          <p class="muted newtask-hint" style="font-size:13px">Save this task first - then you can comment, attach files, and see its activity log right here.</p>
+        </div>
+        <div class="newtask-msgbox">
+          <input disabled placeholder="Type a message" style="flex:1">
+          <button disabled class="ghost" style="padding:8px 12px">Send</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1664,6 +1693,12 @@
   }
   function closeNewTaskModal(){
     document.getElementById("newTaskModal").classList.add("hidden");
+  }
+  function switchNewTaskTab(tab){
+    document.querySelectorAll('.newtask-tab').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tab')===tab); });
+    var hints = { comment: "Save this task first - then you can comment, attach files, and see its activity log right here.", attachment: "Save this task first, then attach documents or files from here.", activity: "Once this task is saved, every change will show up here as an activity log." };
+    var hintEl = document.querySelector('.newtask-hint');
+    if(hintEl) hintEl.textContent = hints[tab] || hints.comment;
   }
   async function addTask(){
     const msg = document.getElementById("taskMsg");
